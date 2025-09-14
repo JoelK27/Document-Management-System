@@ -1,0 +1,30 @@
+## docker-compose up --build, um den container zu erstellen und zu starten
+## docker-compose stop, um ihn zu pausieren
+## docker-compose down, um ihn  zu stoppen und zu entfernen
+
+version: '3.8'
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: documentdb
+      POSTGRES_USER: docuser
+      POSTGRES_PASSWORD: docpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  documentdal:
+    build: ./DocumentDAL
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/documentdb
+      SPRING_DATASOURCE_USERNAME: docuser
+      SPRING_DATASOURCE_PASSWORD: docpass
+    depends_on:
+      - db
+
+volumes:
+  db_data:
