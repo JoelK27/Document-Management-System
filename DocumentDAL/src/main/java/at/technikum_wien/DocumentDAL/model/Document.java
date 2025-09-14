@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @Setter
-
 public class Document {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
