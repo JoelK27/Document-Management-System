@@ -2,7 +2,6 @@
 ## docker-compose stop, um ihn zu pausieren
 ## docker-compose down, um ihn  zu stoppen und zu entfernen
 
-version: '3.8'
 services:
   db:
     image: postgres:15
@@ -26,5 +25,18 @@ services:
     depends_on:
       - db
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@local.at
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80" # host:container (access pgAdmin at http://localhost:5050)
+    depends_on:
+      - db
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
 volumes:
   db_data:
+  pgadmin_data:
