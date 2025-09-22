@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>client.js Test</title>
+    <script type="importmap">
+  {
+    "imports": {
+      "axios": "https://cdn.jsdelivr.net/npm/axios@1.7.7/+esm"
+    }
+  }
+  </script>
+</head>
+
+<body>
+    <h1>client.js Test</h1>
+    <button id="btn-create">Create JSON Doc</button>
+    <button id="btn-list">List/Search</button>
+    <button id="btn-getall">List All</button>
+    <input id="file" type="file" />
+    <button id="btn-upload">Upload File</button>
+    <pre id="out"></pre>
+
+    <script type="module">
+        import {
+            createDocument, listDocuments, searchDocuments,
+            getDocument, updateDocument, deleteDocument,
+            uploadDocumentFile, downloadDocumentFile, getDocumentFileUrl, getAllDocuments
+        } from './src/api/client.js';
+
+        const out = document.getElementById('out');
+        const log = (x) => out.textContent = JSON.stringify(x, null, 2);
+
+        document.getElementById('btn-create').onclick = async () => {
+            const doc = await createDocument({ title: 'Testdoc', summary: 'Kurz', content: 'Hallo' });
+            log(doc);
+            // Beispiel Update/Get/Delete:
+            const got = await getDocument(doc.id);
+            const upd = await updateDocument(doc.id, { ...got, title: 'Neu' });
+            await deleteDocument(upd.id);
+        };
+
+        document.getElementById('btn-list').onclick = async () => {
+            const all = await listDocuments();
+            const filtered = await searchDocuments('');
+            log({ allCount: all.length, filteredCount: filtered.length });
+        };
+
+        document.getElementById('btn-upload').onclick = async () => {
+            const f = document.getElementById('file').files[0];
+            if (!f) return alert('Datei wählen');
+            const doc = await uploadDocumentFile(f, { title: f.name, summary: 'Upload-Test' });
+            log(doc);
+            // Download-URL anzeigen und klickbar machen:
+            const url = await getDocumentFileUrl(doc.id);
+            const a = document.createElement('a');
+            a.href = url; a.download = doc.fileName || 'download.bin'; a.textContent = 'Download';
+            out.after(a);
+        };
+
+        document.getElementById('btn-getall').onclick = async () => {
+            const all = await getAllDocuments();
+            document.getElementById('out').textContent = JSON.stringify(all, null, 2);
+        };
+    </script>
+</body>
+
+</html>

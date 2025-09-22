@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Document Details - FileHub</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#11b4d4',
+                        'background-light': '#f6f8f8',
+                        'background-dark': '#101f22',
+                    },
+                    fontFamily: {
+                        display: ['Inter'],
+                    },
+                    borderRadius: { DEFAULT: '0.5rem', lg: '1rem', xl: '1.5rem', full: '9999px' },
+                },
+            },
+        };
+    </script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+</head>
+
+<body class="font-display bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200 antialiased">
+    <div class="flex flex-col min-h-screen">
+        <main class="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6">
+            <header class="flex items-center gap-4">
+                <a class="flex items-center justify-center size-10 rounded-full bg-slate-200/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 hover:bg-slate-300/80 dark:hover:bg-slate-700/80 transition-colors"
+                    href="#">
+                    <span class="material-symbols-outlined text-xl"> arrow_back </span>
+                </a>
+                <h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Quarterly Financial Report
+                    Q4 2023.pdf</h1>
+            </header>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-1 flex flex-col gap-6">
+                    <div
+                        class="border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 shadow-sm">
+                        <div class="p-4 border-b border-slate-200 dark:border-slate-800">
+                            <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Metadata</h2>
+                        </div>
+                        <ul class="p-4 space-y-4 text-sm">
+                            <li class="flex justify-between items-center">
+                                <span class="text-slate-500 dark:text-slate-400">Name</span>
+                                <span
+                                    class="font-medium text-slate-800 dark:text-slate-100">Quarterly_Report_Q4_2023.pdf</span>
+                            </li>
+                            <li class="flex justify-between items-center">
+                                <span class="text-slate-500 dark:text-slate-400">Size</span>
+                                <span class="font-medium text-slate-800 dark:text-slate-100">1.8 MB</span>
+                            </li>
+                            <li class="flex justify-between items-center">
+                                <span class="text-slate-500 dark:text-slate-400">Upload Date</span>
+                                <span class="font-medium text-slate-800 dark:text-slate-100">2024-03-22</span>
+                            </li>
+                            <li class="flex justify-between items-center">
+                                <span class="text-slate-500 dark:text-slate-400">OCR Status</span>
+                                <span
+                                    class="inline-flex items-center gap-1.5 font-medium text-green-600 dark:text-green-400">
+                                    <span class="material-symbols-outlined text-base"> check_circle </span>
+                                    Completed
+                                </span>
+                            </li>
+                        </ul>
+                        <div class="p-4 border-t border-slate-200 dark:border-slate-800">
+                            <h3 class="text-base font-semibold text-slate-900 dark:text-white mb-3">Tags</h3>
+                            <div class="flex flex-wrap gap-2">
+                                <span
+                                    class="px-3 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary/90">Finance</span>
+                                <span
+                                    class="px-3 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary/90">Report</span>
+                                <span
+                                    class="px-3 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary/90">Q4</span>
+                            </div>
+                        </div>
+                        <div
+                            class="p-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-2">
+                            <button
+                                class="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-primary rounded shadow-sm hover:bg-primary/90 transition-colors">
+                                <span class="material-symbols-outlined text-base"> edit </span>
+                                Update
+                            </button>
+                            <button
+                                class="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-red-600 dark:text-red-400 bg-red-500/10 dark:bg-red-400/10 rounded hover:bg-red-500/20 dark:hover:bg-red-400/20 transition-colors">
+                                <span class="material-symbols-outlined text-base"> delete </span>
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:col-span-2 flex flex-col gap-6">
+                    <div
+                        class="aspect-[4/3] w-full rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-center p-2">
+                        <div
+                            class="w-full h-full bg-slate-200 dark:bg-slate-800 rounded flex items-center justify-center text-slate-500 dark:text-slate-400">
+                            <p>Document Preview (PDF/Image)</p>
+                        </div>
+                    </div>
+                    <div
+                        class="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <div
+                            class="p-4 flex justify-between items-center border-b border-slate-200 dark:border-slate-800">
+                            <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Summary</h2>
+                            <button
+                                class="flex items-center justify-center size-8 rounded-full bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary/90 hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors">
+                                <span class="material-symbols-outlined text-lg"> refresh </span>
+                            </button>
+                        </div>
+                        <div class="p-4 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                            <p>This document details the financial performance for the fourth quarter of 2023. It
+                                includes a comprehensive analysis of revenue streams, operating expenses, and net
+                                profit. Key highlights include a 15% year-over-year revenue growth, driven by strong
+                                performance in the North American market. The report also outlines strategic initiatives
+                                for the upcoming year aimed at sustaining growth and improving operational efficiency.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+</body>
+
+</html>

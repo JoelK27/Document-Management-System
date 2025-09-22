@@ -1,9 +1,7 @@
 package at.technikum_wien.DocumentDAL.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,4 +17,13 @@ public class Document {
     private String content;
     private String summary;
     private LocalDateTime uploadDate;
+
+    private String fileName;
+    private String mimeType;
+    private long size;
+
+    @Lob
+    @Basic(fetch = FetchType.LAZY)
+    @JsonIgnore // nicht in JSON-Listen/Detail mitschicken
+    private byte[] fileData;
 }
