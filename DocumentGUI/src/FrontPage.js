@@ -2,12 +2,14 @@ import {
     uploadDocumentFile, 
     getAllDocuments,
     getDocumentFileUrl,
-    deleteDocument 
+    deleteDocument,
+    searchDocuments  
 } from './api/client.js';
 
 // DOM elements
 const dropzone = document.getElementById('dropzone');
 const fileSelectBtn = document.getElementById('fileSelect');
+const searchInput = document.getElementById('searchInput');
 let fileInput = null;
 
 // Initialize the page
@@ -15,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initFileUpload();
     initDragAndDrop();
     loadDocuments();
+    initSearch();
 });
 
 // Create hidden file input and handle button click
@@ -58,6 +61,57 @@ function initDragAndDrop() {
     
     // Handle dropped files
     dropzone.addEventListener('drop', handleDrop, false);
+}
+
+function initSearch() {
+    if (!searchInput) return;
+    
+    // Debounce-Funktion, um nicht bei jedem Tastendruck zu suchen
+    let searchTimeout = null;
+    
+    searchInput.addEventListener('input', (e) => {
+        // Suchindikator anzeigen
+        const container = document.querySelector('.space-y-4');
+        if (container) {
+            // Lade-Animation während der Suche
+            container.innerHTML = '<div class="flex justify-center p-4"><svg class="animate-spin h-8 w-8 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>';
+        }
+        
+        // Vorherigen Timeout löschen und neuen setzen
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(async () => {
+            const query = e.target.value.trim();
+            console.log('Searching for:', query);
+            
+            try {
+                const documents = query 
+                    ? await searchDocuments(query) 
+                    : await getAllDocuments();
+                
+                displayDocuments(documents);
+                
+                // Suchstatistik anzeigen
+                if (container && query) {
+                    const resultsInfo = document.createElement('div');
+                    resultsInfo.className = 'text-sm text-black/60 dark:text-white/60 mb-2';
+                    resultsInfo.textContent = `Found ${documents.length} results for "${query}"`;
+                    container.prepend(resultsInfo);
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                if (container) {
+                    container.innerHTML = '<div class="text-center p-4 text-red-500">Error searching documents</div>';
+                }
+            }
+        }, 500); // 1000ms Verzögerung
+    });
+    
+    // Suche zurücksetzen, wenn das Feld geleert wird
+    searchInput.addEventListener('search', (e) => {
+        if (e.target.value === '') {
+            loadDocuments();
+        }
+    });
 }
 
 // Helper functions for drag and drop
@@ -249,11 +303,16 @@ function createDeleteModal() {
 let deleteModal = null;
 let pendingDeleteId = null;
 
+// Dann aktualisieren wir die DOMContentLoaded Funktion:
 document.addEventListener('DOMContentLoaded', () => {
-    // Add this to your existing DOMContentLoaded event
+    initFileUpload();
+    initDragAndDrop();
+    initSearch(); // Neue Funktion hinzufügen
+    loadDocuments();
+    
+    // Delete modal initialization (existierender Code)
     deleteModal = createDeleteModal();
     
-    // Add event listeners for the modal buttons
     document.getElementById('delete-cancel-btn').addEventListener('click', () => {
         hideDeleteModal();
     });
@@ -295,4 +354,4 @@ function confirmAndDeleteDocument(id) {
     showDeleteModal(id);
 }
 
-export { initFileUpload, initDragAndDrop, loadDocuments };
+export { initFileUpload, initDragAndDrop, loadDocuments, initSearch };

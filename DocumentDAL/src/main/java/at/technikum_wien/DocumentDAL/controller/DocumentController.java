@@ -99,9 +99,9 @@ public class DocumentController {
     @GetMapping("/search")
     public ResponseEntity<List<Document>> search(@RequestParam(value = "q", required = false, defaultValue = "") String q) {
         if (q == null ||q.isBlank()) {
-            return ResponseEntity.ok(repo.findAll());
+            return ResponseEntity.ok(repo.findAllWithoutFileData());
         }
-        List<Document> results = repo.search(q);
+        List<Document> results = repo.searchWithoutFileData(q);
         return ResponseEntity.ok(results);
     }
 

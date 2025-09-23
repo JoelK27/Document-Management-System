@@ -11,6 +11,21 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 public class Document {
+
+    public Document() {}
+
+    public Document(int id, String title, String content, String summary, LocalDateTime uploadDate,
+                    String fileName, String mimeType, long size) {
+        this.id = id;
+        this.title = title;
+        this.content = content;
+        this.summary = summary;
+        this.uploadDate = uploadDate;
+        this.fileName = fileName;
+        this.mimeType = mimeType;
+        this.size = size;
+    }
+
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
     private String title;
