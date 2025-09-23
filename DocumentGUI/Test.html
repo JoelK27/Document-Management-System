@@ -1,69 +1,196 @@
-<!doctype html>
-<html>
-
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <title>client.js Test</title>
-    <script type="importmap">
-  {
-    "imports": {
-      "axios": "https://cdn.jsdelivr.net/npm/axios@1.7.7/+esm"
-    }
-  }
-  </script>
-</head>
-
-<body>
-    <h1>client.js Test</h1>
-    <button id="btn-create">Create JSON Doc</button>
-    <button id="btn-list">List/Search</button>
-    <button id="btn-getall">List All</button>
-    <input id="file" type="file" />
-    <button id="btn-upload">Upload File</button>
-    <pre id="out"></pre>
-
-    <script type="module">
-        import {
-            createDocument, listDocuments, searchDocuments,
-            getDocument, updateDocument, deleteDocument,
-            uploadDocumentFile, downloadDocumentFile, getDocumentFileUrl, getAllDocuments
-        } from './src/api/client.js';
-
-        const out = document.getElementById('out');
-        const log = (x) => out.textContent = JSON.stringify(x, null, 2);
-
-        document.getElementById('btn-create').onclick = async () => {
-            const doc = await createDocument({ title: 'Testdoc', summary: 'Kurz', content: 'Hallo' });
-            log(doc);
-            // Beispiel Update/Get/Delete:
-            const got = await getDocument(doc.id);
-            const upd = await updateDocument(doc.id, { ...got, title: 'Neu' });
-            await deleteDocument(upd.id);
-        };
-
-        document.getElementById('btn-list').onclick = async () => {
-            const all = await listDocuments();
-            const filtered = await searchDocuments('');
-            log({ allCount: all.length, filteredCount: filtered.length });
-        };
-
-        document.getElementById('btn-upload').onclick = async () => {
-            const f = document.getElementById('file').files[0];
-            if (!f) return alert('Datei wählen');
-            const doc = await uploadDocumentFile(f, { title: f.name, summary: 'Upload-Test' });
-            log(doc);
-            // Download-URL anzeigen und klickbar machen:
-            const url = await getDocumentFileUrl(doc.id);
-            const a = document.createElement('a');
-            a.href = url; a.download = doc.fileName || 'download.bin'; a.textContent = 'Download';
-            out.after(a);
-        };
-
-        document.getElementById('btn-getall').onclick = async () => {
-            const all = await getAllDocuments();
-            document.getElementById('out').textContent = JSON.stringify(all, null, 2);
-        };
+<meta charset="UTF-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FileHub Dashboard</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#11b4d4",
+              "background-light": "#f6f8f8",
+              "background-dark": "#101f22",
+            },
+            fontFamily: {
+              display: ["Inter"],
+            },
+            borderRadius: { DEFAULT: "0.5rem", lg: "1rem", xl: "1.5rem", full: "9999px" },
+          },
+        },
+      };
     </script>
-</body>
-
-</html>
+<style type="text/tailwindcss">
+      @layer base {
+        body {
+          @apply font-display bg-background-light dark:bg-background-dark text-[#1a2e32] dark:text-[#e0e8e9];
+        }
+      }
+    </style>
+</head>
+<body>
+<div class="flex h-screen">
+<aside class="w-20 bg-background-light dark:bg-background-dark border-r border-black/10 dark:border-white/10 flex flex-col items-center py-6 space-y-8">
+<a class="text-primary" href="#">
+<svg class="h-8 w-8" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M12.38 2.57 3.38 18.57 10.38 20.32 17.38 18.57 21.38 10.57 12.38 2.57ZM12.38 5.43 18.63 10.57 12.38 14.82 6.13 10.57 12.38 5.43Z"/>
+</svg>
+</a>
+<nav class="flex flex-col items-center space-y-6">
+<a class="p-3 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary" href="#">
+<svg fill="currentColor" height="24" viewBox="0 0 256 256" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M221.66 93.66 133.66 5.66a8 8 0 0 0-11.32 0l-88 88A8 8 0 0 0 32 104v112a8 8 0 0 0 8 8h64a8 8 0 0 0 8-8v-64a8 8 0 0 1 8-8h32a8 8 0 0 1 8 8v64a8 8 0 0 0 8 8h64a8 8 0 0 0 8-8V104a8 8 0 0 0-2.34-5.66ZM208 208h-48v-64a16 16 0 0 0-16-16h-32a16 16 0 0 0-16 16v64H48V104l80-80 80 80Z"/>
+</svg>
+</a>
+<a class="p-3 rounded-lg text-black/60 dark:text-white/60 hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="#">
+<svg fill="currentColor" height="24" viewBox="0 0 256 256" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M216 40H40a16 16 0 0 0-16 16v144a16 16 0 0 0 16 16h176a16 16 0 0 0 16-16V56a16 16 0 0 0-16-16Zm0 160H40V56h176ZM176 88H80a8 8 0 0 0 0 16h96a8 8 0 0 0 0-16Z"/>
+</svg>
+</a>
+<a class="p-3 rounded-lg text-black/60 dark:text-white/60 hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="#">
+<svg fill="currentColor" height="24" viewBox="0 0 256 256" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M229.66 218.34 179.59 168.27a88.11 88.11 0 1 0-11.31 11.31l50.07 50.07a8 8 0 0 0 11.31-11.31ZM40 112a72 72 0 1 1 72 72a72.08 72.08 0 0 1-72-72Z"/>
+</svg>
+</a>
+<a class="p-3 rounded-lg text-black/60 dark:text-white/60 hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="#">
+<svg fill="currentColor" height="24" viewBox="0 0 256 256" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M141.25 106.66a28 28 0 1 1-28-28a28 28 0 0 1 28 28Zm-28-40a40 40 0 1 0 40 40a40 40 0 0 0-40-40Zm84.34 98.42a8 8 0 0 0-12.83-8.84l-8.31-5.54a55.63 55.63 0 0 0 3.79-21.78l10-2.85a8 8 0 0 0 4.61-14.73l-10-2.86a55.57 55.57 0 0 0-6.85-18.69l7-7.88a8 8 0 0 0-11.31-11.31l-7 7.88a55.57 55.57 0 0 0-18.69-6.85l-2.86-10a8 8 0 0 0-14.73-4.61l-2.85 10a55.63 55.63 0 0 0-21.78 3.79l-5.54-8.31a8 8 0 0 0-12.83 8.84l5.54 8.31a55.63 55.63 0 0 0-3.79 21.78l-10 2.85a8 8 0 1 0 4.61 14.73l10 2.86a55.57 55.57 0 0 0 6.85 18.69l-7 7.88a8 8 0 1 0 11.31 11.31l7-7.88a55.57 55.57 0 0 0 18.69 6.85l2.86 10a8 8 0 0 0 14.73 4.61l2.85-10a55.63 55.63 0 0 0 21.78-3.79l5.54 8.31a8 8 0 0 0 12.83-8.84Zm-47.56 16.29a39.81 39.81 0 0 1-24.12 0l-3.32 11.6a8 8 0 0 0 4.3 10.38a8.1 8.1 0 0 0 2.8.54a8 8 0 0 0 7.58-5.14Zm-41.24-52.55-9.14-2.61a8 8 0 0 0-6.15 15.35l9.14 2.61a39.46 39.46 0 0 1 11-13.87Zm62.27 1.49a39.46 39.46 0 0 1-11 13.87l9.14-2.61a8 8 0 1 0-6.15-15.35l-9.14 2.61a40.24 40.24 0 0 1 17.15 1.48Z"/>
+</svg>
+</a>
+</nav>
+<div class="mt-auto">
+<img alt="User avatar" class="h-10 w-10 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCp1H5X8PssAH4FMAZnnGyuKIhBKqewBQG16ElvMbmi3YLkJx5ru5xq8QET5L9rdECJ3VnAJPAEsBjBJtvWE4aPWZaEQyKFFY62We_mxbUjot2W-HrP8PHIYQw0JAXIV7esdzgO5K_WWXIc-YC0HR3pA1VxG0pibi_7u5r10BhOxo63z9zjcnDkLMcOlMQ783Qj4XzPrIKm7tSBMf4TaBQWYjI2zotnJ0ZTYGdF-ipXOF62nNgmghCALlsW8IF5iptzFjC_TZK8sMmB"/>
+</div>
+</aside>
+<main class="flex-1 grid grid-cols-12 gap-6 p-6 overflow-y-auto">
+<div class="col-span-12 lg:col-span-4">
+<div class="flex flex-col items-center justify-center p-8 border-2 border-dashed border-primary/50 rounded-xl bg-primary/5 dark:bg-primary/10 text-center h-full min-h-[200px]">
+<div class="text-primary mb-4">
+<svg fill="currentColor" height="40" viewBox="0 0 256 256" width="40" xmlns="http://www.w3.org/2000/svg">
+<path d="M248 128a88.1 88.1 0 0 1-88 88H88a88 88 0 0 1-70.19-140.48A56 56 0 0 1 128 56h8a8 8 0 0 1 0 16h-8a40 40 0 0 0-39.73 34.11a8 8 0 0 1-15.86-2.22A56.07 56.07 0 0 1 88 40a72.08 72.08 0 0 0-72 72c0 39.7 32.3 72 72 72h72a72.08 72.08 0 0 0 72-72c0-39.69-32.31-72-72-72h-8a8 8 0 0 1 0-16h8A88.1 88.1 0 0 1 248 128ZM184 120a8 8 0 0 0-8 8v32a8 8 0 0 0 16 0v-32a8 8 0 0 0-8-8Zm-48-40a8 8 0 0 0-8 8v80a8 8 0 0 0 16 0V88a8 8 0 0 0-8-8Zm-48 24a8 8 0 0 0-8 8v40a8 8 0 0 0 16 0v-40a8 8 0 0 0-8-8Z"/>
+</svg>
+</div>
+<h3 class="font-bold text-lg text-black/90 dark:text-white/90">Upload New Files</h3>
+<p class="text-sm text-black/60 dark:text-white/60 mb-4">Drag and drop files here</p>
+<button class="px-4 py-2 bg-primary text-white font-bold rounded-lg hover:opacity-90 transition-opacity text-sm">Select Files</button>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-8">
+<div class="flex flex-col sm:flex-row gap-4 items-center mb-6">
+<div class="relative w-full">
+<span class="absolute inset-y-0 left-0 flex items-center pl-3 text-black/40 dark:text-white/40">
+<svg fill="currentColor" height="20" viewBox="0 0 256 256" width="20" xmlns="http://www.w3.org/2000/svg">
+<path d="M229.66 218.34 179.59 168.27a88.11 88.11 0 1 0-11.31 11.31l50.07 50.07a8 8 0 0 0 11.31-11.31ZM40 112a72 72 0 1 1 72 72a72.08 72.08 0 0 1-72-72Z"/>
+</svg>
+</span>
+<input class="w-full pl-10 pr-4 py-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow" placeholder="Search documents..." type="search"/>
+</div>
+<button class="flex items-center gap-2 px-4 py-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg whitespace-nowrap text-black/80 dark:text-white/80 hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+<span>Filters</span>
+<svg fill="currentColor" height="20" viewBox="0 0 256 256" width="20" xmlns="http://www.w3.org/2000/svg">
+<path d="M213.66 101.66 136 179.31V232a8 8 0 0 1-13.66 5.66l-32-48A8 8 0 0 1 88 184v-4.69L10.34 101.66a8 8 0 0 1 2.94-13.91L216 40a8 8 0 0 1 10.57 10.57A8 8 0 0 1 224 56v.08L146.31 133.66a8 8 0 0 1-10.31 0L58.31 56h139.38Z"/>
+</svg>
+</button>
+</div>
+<div class="space-y-4">
+<div class="bg-background-light dark:bg-background-dark p-6 rounded-xl flex flex-col md:flex-row items-start gap-4 transition-shadow hover:shadow-lg border border-black/5 dark:border-white/5">
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-2">
+<span class="inline-flex items-center gap-2 text-sm px-3 py-1 rounded-full bg-green-500/10 text-green-500 dark:bg-green-400/20 dark:text-green-400">
+<span class="w-2 h-2 rounded-full bg-green-500"></span> Finished
+                  </span>
+<p class="text-sm text-black/60 dark:text-white/60">Uploaded on 2024-07-15</p>
+</div>
+<h4 class="font-bold text-lg mb-2 text-black/90 dark:text-white/90">Project Proposal</h4>
+<p class="text-sm text-black/70 dark:text-white/70 mb-4 line-clamp-2">This document outlines the scope, objectives, and timeline for the upcoming web redesign project...</p>
+<div class="flex items-center gap-2">
+<button class="p-2 rounded-lg text-black/60 dark:text-white/60 hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors">
+<svg fill="currentColor" height="20" viewBox="0 0 256 256" width="20" xmlns="http://www.w3.org/2000/svg">
+<path d="M227.31 73.37 182.63 28.68a16 16 0 0 0-22.63 0L36.69 152A15.86 15.86 0 0 0 32 163.31V208a16 16 0 0 0 16 16h44.69a15.86 15.86 0 0 0 11.31-4.69L227.31 96a16 16 0 0 0 0-22.63ZM92.69 208H48v-44.69l88-88L180.69 120ZM192 108.68 147.31 64l24-24L216 84.68Z"/>
+</svg>
+</button>
+<button class="p-2 rounded-lg text-black/60 dark:text-white/60 hover:bg-red-500/10 dark:hover:bg-red-500/20 hover:text-red-500 transition-colors">
+<svg fill="currentColor" height="20" viewBox="0 0 256 256" width="20" xmlns="http://www.w3.org/2000/svg">
+<path d="M216 48h-36V40a24 24 0 0 0-24-24h-48a24 24 0 0 0-24 24v8H48a8 8 0 0 0 0 16h8v144a16 16 0 0 0 16 16h112a16 16 0 0 0 16-16V64h8a8 8 0 0 0 0-16ZM96 40a8 8 0 0 1 8-8h48a8 8 0 0 1 8 8v8H96Zm96 168H64V64h128Zm-80-104v64a8 8 0 0 1-16 0v-64a8 8 0 0 1 16 0Zm48 0v64a8 8 0 0 1-16 0v-64a8 8 0 0 1 16 0Z"/>
+</svg>
+</button>
+<button class="p-2 rounded-lg text-black/60 dark:text-white/60 hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors">
+<svg fill="currentColor" height="20" viewBox="0 0 256 256" width="20" xmlns="http://www.w3.org/2000/svg">
+<path d="M128 24a104 104 0 1 0 104 104A104.11 104.11 0 0 0 128 24Zm45.66 109.66-32 32A8 8 0 0 1 128 160v-18.34l-37.66 37.68a8 8 0 0 1-11.32-11.32L116.69 128l-37.67-37.66a8 8 0 0 1 11.32-11.32L128 118.34V100a8 8 0 0 1 13.66-5.66l32 32a8 8 0 0 1 0 11.32Z"/>
+</svg>
+</button>
+</div>
+</div>
+<div class="w-full md:w-40 h-32 bg-cover bg-center rounded-lg" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDcG-P4ECogTzz2bJBNdZOWOUFNduMRXcGWQlHMEbvm4B4h0umfajBQF4xHUlAf5tiHfKJDpWB1J_coYwB76EQgTFarle7Xat0ZLJM2wvUIW8z89LrskMZzZxJc9gxnc-2cLiE4BWFrI56W_g6Ia6CVO5lAlNcmA0MG0ESkkOe_yV-0EroaXb-NOGJ4YRuNdqFzByQhukx8ZrZ85-jZmppWSD9HIGOtkmnYdQyYL4drXEcgfVA1qo38ZGgQ-dAxga5ExDQg4JE9oXuY')"></div>
+</div>
+<div class="bg-background-light dark:bg-background-dark p-6 rounded-xl flex flex-col md:flex-row items-start gap-4 transition-shadow hover:shadow-lg border border-black/5 dark:border-white/5">
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-2">
+<span class="inline-flex items-center gap-2 text-sm px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-500 dark:bg-yellow-400/20 dark:text-yellow-400">
+<span class="w-2 h-2 rounded-full bg-yellow-500"></span> In Progress
+                  </span>
+<p class="text-sm text-black/60 dark:text-white/60">Uploaded on 2024-06-28</p>
+</div>
+<h4 class="font-bold text-lg mb-2 text-black/90 dark:text-white/90">Marketing Plan Q3</h4>
+<p class="text-sm text-black/70 dark:text-white/70 mb-4 line-clamp-2">Awaiting final review from the marketing team. Includes new campaign strategies and budget allocation for the third quarter...</p>
+<div class="flex items-center gap-2">
+<button class="p-2 rounded-lg text-black/60 dark:text-white/60 hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors">
+<svg fill="currentColor" height="20" viewBox="0 0 256 256" width="20" xmlns="http://www.w3.org/2000/svg">
+<path d="M227.31 73.37 182.63 28.68a16 16 0 0 0-22.63 0L36.69 152A15.86 15.86 0 0 0 32 163.31V208a16 16 0 0 0 16 16h44.69a15.86 15.86 0 0 0 11.31-4.69L227.31 96a16 16 0 0 0 0-22.63ZM92.69 208H48v-44.69l88-88L180.69 120ZM192 108.68 147.31 64l24-24L216 84.68Z"/>
+</svg>
+</button>
+<button class="p-2 rounded-lg text-black/60 dark:text-white/60 hover:bg-red-500/10 dark:hover:bg-red-500/20 hover:text-red-500 transition-colors">
+<svg fill="currentColor" height="20" viewBox="0 0 256 256" width="20" xmlns="http://www.w3.org/2000/svg">
+<path d="M216 48h-36V40a24 24 0 0 0-24-24h-48a24 24 0 0 0-24 24v8H48a8 8 0 0 0 0 16h8v144a16 16 0 0 0 16 16h112a16 16 0 0 0 16-16V64h8a8 8 0 0 0 0-16ZM96 40a8 8 0 0 1 8-8h48a8 8 0 0 1 8 8v8H96Zm96 168H64V64h128Zm-80-104v64a8 8 0 0 1-16 0v-64a8 8 0 0 1 16 0Zm48 0v64a8 8 0 0 1-16 0v-64a8 8 0 0 1 16 0Z"/>
+</svg>
+</button>
+<button class="p-2 rounded-lg text-black/60 dark:text-white/60 hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors">
+<svg fill="currentColor" height="20" viewBox="0 0 256 256" width="20" xmlns="http://www.w3.org/2000/svg">
+<path d="M128 24a104 104 0 1 0 104 104A104.11 104.11 0 0 0 128 24Zm45.66 109.66-32 32A8 8 0 0 1 128 160v-18.34l-37.66 37.68a8 8 0 0 1-11.32-11.32L116.69 128l-37.67-37.66a8 8 0 0 1 11.32-11.32L128 118.34V100a8 8 0 0 1 13.66-5.66l32 32a8 8 0 0 1 0 11.32Z"/>
+</svg>
+</button>
+</div>
+</div>
+<div class="w-full md:w-40 h-32 bg-cover bg-center rounded-lg" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDcG-P4ECogTzz2bJBNdZOWOUFNduMRXcGWQlHMEbvm4B4h0umfajBQF4xHUlAf5tiHfKJDpWB1J_coYwB76EQgTFarle7Xat0ZLJM2wvUIW8z89LrskMZzZxJc9gxnc-2cLiE4BWFrI56W_g6Ia6CVO5lAlNcmA0MG0ESkkOe_yV-0EroaXb-NOGJ4YRuNdqFzByQhukx8ZrZ85-jZmppWSD9HIGOtkmnYdQyYL4drXEcgfVA1qo38ZGgQ-dAxga5ExDQg4JE9oXuY')"></div>
+</div>
+<div class="bg-background-light dark:bg-background-dark p-6 rounded-xl flex flex-col md:flex-row items-start gap-4 transition-shadow hover:shadow-lg border border-black/5 dark:border-white/5">
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-2">
+<span class="inline-flex items-center gap-2 text-sm px-3 py-1 rounded-full bg-gray-500/10 text-gray-500 dark:bg-gray-400/20 dark:text-gray-400">
+<span class="w-2 h-2 rounded-full bg-gray-500"></span> Not Started
+                  </span>
+<p class="text-sm text-black/60 dark:text-white/60">Uploaded on 2024-05-10</p>
+</div>
+<h4 class="font-bold text-lg mb-2 text-black/90 dark:text-white/90">Financial Report Draft</h4>
+<p class="text-sm text-black/70 dark:text-white/70 mb-4 line-clamp-2">Initial draft of the financial report for the first half of the year. Pending data verification and analysis...</p>
+<div class="flex items-center gap-2">
+<button class="p-2 rounded-lg text-black/60 dark:text-white/60 hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors">
+<svg fill="currentColor" height="20" viewBox="0 0 256 256" width="20" xmlns="http://www.w3.org/2000/svg">
+<path d="M227.31 73.37 182.63 28.68a16 16 0 0 0-22.63 0L36.69 152A15.86 15.86 0 0 0 32 163.31V208a16 16 0 0 0 16 16h44.69a15.86 15.86 0 0 0 11.31-4.69L227.31 96a16 16 0 0 0 0-22.63ZM92.69 208H48v-44.69l88-88L180.69 120ZM192 108.68 147.31 64l24-24L216 84.68Z"/>
+</svg>
+</button>
+<button class="p-2 rounded-lg text-black/60 dark:text-white/60 hover:bg-red-500/10 dark:hover:bg-red-500/20 hover:text-red-500 transition-colors">
+<svg fill="currentColor" height="20" viewBox="0 0 256 256" width="20" xmlns="http://www.w3.org/2000/svg">
+<path d="M216 48h-36V40a24 24 0 0 0-24-24h-48a24 24 0 0 0-24 24v8H48a8 8 0 0 0 0 16h8v144a16 16 0 0 0 16 16h112a16 16 0 0 0 16-16V64h8a8 8 0 0 0 0-16ZM96 40a8 8 0 0 1 8-8h48a8 8 0 0 1 8 8v8H96Zm96 168H64V64h128Zm-80-104v64a8 8 0 0 1-16 0v-64a8 8 0 0 1 16 0Zm48 0v64a8 8 0 0 1-16 0v-64a8 8 0 0 1 16 0Z"/>
+</svg>
+</button>
+<button class="p-2 rounded-lg text-black/60 dark:text-white/60 hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors">
+<svg fill="currentColor" height="20" viewBox="0 0 256 256" width="20" xmlns="http://www.w3.org/2000/svg">
+<path d="M128 24a104 104 0 1 0 104 104A104.11 104.11 0 0 0 128 24Zm45.66 109.66-32 32A8 8 0 0 1 128 160v-18.34l-37.66 37.68a8 8 0 0 1-11.32-11.32L116.69 128l-37.67-37.66a8 8 0 0 1 11.32-11.32L128 118.34V100a8 8 0 0 1 13.66-5.66l32 32a8 8 0 0 1 0 11.32Z"/>
+</svg>
+</button>
+</div>
+</div>
+<div class="w-full md:w-40 h-32 bg-cover bg-center rounded-lg" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDcG-P4ECogTzz2bJBNdZOWOUFNduMRXcGWQlHMEbvm4B4h0umfajBQF4xHUlAf5tiHfKJDpWB1J_coYwB76EQgTFarle7Xat0ZLJM2wvUIW8z89LrskMZzZxJc9gxnc-2cLiE4BWFrI56W_g6Ia6CVO5lAlNcmA0MG0ESkkOe_yV-0EroaXb-NOGJ4YRuNdqFzByQhukx8ZrZ85-jZmppWSD9HIGOtkmnYdQyYL4drXEcgfVA1qo38ZGgQ-dAxga5ExDQg4JE9oXuY')"></div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

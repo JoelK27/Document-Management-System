@@ -24,6 +24,10 @@ public class DocumentController {
         this.repo = repo;
     }
 
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<String> handleException(Exception e) {
+        return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+    }
 
     // JSON-basierter Upload (Textfelder)
     @PostMapping("/upload")
