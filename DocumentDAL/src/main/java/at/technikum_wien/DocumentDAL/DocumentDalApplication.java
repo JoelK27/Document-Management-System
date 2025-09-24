@@ -9,7 +9,7 @@ import java.util.TimeZone;
 public class DocumentDalApplication {
 
 	public static void main(String[] args) {
-		TimeZone.setDefault(TimeZone.getTimeZone("GMT+2"));
+        TimeZone.setDefault(TimeZone.getTimeZone("GMT+2"));
 		SpringApplication.run(DocumentDalApplication.class, args);
 	}
 
