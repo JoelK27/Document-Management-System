@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  baseURL: '/api',
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -20,8 +20,13 @@ export const api = axios.create({
 
 /** Get by id (ohne fileData) */
 export const getDocument = async (documentId) => {
-  const { data } = await api.get(`/documents/${documentId}`);
-  return data;
+  try {
+    const { data } = await api.get(`/documents/${documentId}`);
+    return data;
+  } catch (error) {
+    // Bei 404 oder anderen API-Fehlern den Error weiterleiten
+    throw error;
+  }
 };
 
 /** List or search documents (q optional) */
@@ -90,4 +95,10 @@ export const downloadDocumentFile = async (documentId) => {
 export const getDocumentFileUrl = async (documentId) => {
   const blob = await downloadDocumentFile(documentId);
   return URL.createObjectURL(blob);
+};
+
+/** Vorschau herunterladen als Blob */
+export const getDocumentPreviewBlob = async (documentId) => {
+  const res = await api.get(`/documents/${documentId}/preview`, { responseType: 'blob' });
+  return res.data;
 };

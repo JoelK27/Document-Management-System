@@ -2,16 +2,20 @@ package at.technikum_wien.DocumentDAL.controller;
 
 import at.technikum_wien.DocumentDAL.model.Document;
 import at.technikum_wien.DocumentDAL.repo.DocumentRepository;
+import at.technikum_wien.DocumentDAL.services.PdfPreviewService;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/documents")
@@ -19,6 +23,7 @@ import java.util.List;
 public class DocumentController {
 
     private final DocumentRepository repo;
+    private final PdfPreviewService pdfPreviewService = new PdfPreviewService();
 
     public DocumentController(DocumentRepository repo) {
         this.repo = repo;
@@ -39,14 +44,45 @@ public class DocumentController {
         return ResponseEntity.created(URI.create("/api/documents/" + saved.getId())).body(saved);
     }
 
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("application/pdf", "text/plain");
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("pdf", "txt");
+
+    private boolean isAllowed(MultipartFile file) {
+        if (file == null || file.isEmpty()) return false;
+        String ct = file.getContentType();
+        String original = file.getOriginalFilename();
+        if (original == null) return false;
+        String ext = original.contains(".") ? original.substring(original.lastIndexOf('.') + 1).toLowerCase() : "";
+        // Manche Browser liefern z.B. bei .txt manchmal "text/plain", bei pdf "application/pdf"
+        return ALLOWED_EXTENSIONS.contains(ext) && (ct == null || ALLOWED_CONTENT_TYPES.contains(ct));
+    }
+
+    private static final long MAX_FILE_SIZE = 50L * 1024 * 1024; // 50 MB
+
     // Multipart Upload: Datei + optionale Metadaten
     @PostMapping(path = "/upload-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Document> uploadFile(
+    public ResponseEntity<?> uploadFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "summary", required = false) String summary,
             @RequestParam(value = "content", required = false) String content
     ) throws Exception {
+
+        if (file.isEmpty()){
+            return ResponseEntity.badRequest()
+                    .body("The file can't be empty.");
+        }
+
+        if (!isAllowed(file)) {
+            return ResponseEntity.badRequest()
+                    .body("Only PDF and TXT files are allowed.");
+        }
+
+        if(file.getBytes().length > MAX_FILE_SIZE){
+            return ResponseEntity.badRequest()
+                    .body("The file to be uploaded can't exceed 50MB");
+        }
+
         Document doc = new Document();
         doc.setTitle(title != null ? title : file.getOriginalFilename());
         doc.setSummary(summary);
@@ -144,5 +180,28 @@ public class DocumentController {
         }
         repo.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/preview")
+    public ResponseEntity<?> preview(@PathVariable int id) {
+        return repo.findById(id).map(doc -> {
+            if (doc.getMimeType() == null ||
+                    !doc.getMimeType().equalsIgnoreCase("application/pdf") ||
+                    doc.getFileData() == null) {
+                return ResponseEntity.notFound().build();
+            }
+            try {
+                byte[] png = pdfPreviewService.renderFirstPageAsPng(doc.getFileData());
+                return ResponseEntity.ok()
+                        .cacheControl(CacheControl.noStore())
+                        .contentType(MediaType.IMAGE_PNG)
+                        .header(HttpHeaders.CONTENT_DISPOSITION,
+                                "inline; filename=\"preview-" + doc.getId() + ".png\"")
+                        .body(png);
+            } catch (IOException e) {
+                return ResponseEntity.internalServerError()
+                        .body(null);
+            }
+        }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

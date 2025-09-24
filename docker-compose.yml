@@ -3,7 +3,7 @@
 ## docker-compose down, um ihn  zu stoppen und zu entfernen
 
 services:
-  db:
+  database:
     image: postgres:15
     environment:
       POSTGRES_DB: documentdb
@@ -13,17 +13,30 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    networks:
+      - app-network
 
-  documentdal:
+  backend:
     build: ./DocumentDAL
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/documentdb
+      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/documentdb
       SPRING_DATASOURCE_USERNAME: docuser
       SPRING_DATASOURCE_PASSWORD: docpass
     depends_on:
-      - db
+      - database
+    networks:
+      - app-network
+
+  frontend:
+    build: ./DocumentGUI
+    ports:
+      - "80:80"  # Frontend auf Port 80 für http://localhost/
+    depends_on:
+      - backend
+    networks:
+      - app-network
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -33,10 +46,16 @@ services:
     ports:
       - "5050:80" # host:container (access pgAdmin at http://localhost:5050)
     depends_on:
-      - db
+      - database
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - app-network
 
 volumes:
   db_data:
   pgadmin_data:
+
+networks:
+  app-network:
+    driver: bridge
