@@ -207,19 +207,20 @@ function displayDocuments(documents) {
 // Create a document element
 function createDocumentElement(doc) {
     const element = document.createElement('div');
-    element.className = 'bg-black/5 dark:bg-white/5 p-4 rounded-xl flex flex-col md:flex-row items-start gap-4 transition-shadow hover:shadow-lg';
     
-    // Format date for display
-// Format date for display by directly manipulating the string
-const uploadDate = doc.uploadDate 
-    ? doc.uploadDate.replace('T', ' ').replace(/\.\d+$/, '').replace('Z', '') 
-    : 'Unknown date';
-    
-    // Determine document status
-    let statusClass = 'bg-gray-500/10 text-gray-500 dark:bg-gray-400/20 dark:text-gray-400';
-    let statusDot = 'bg-gray-500';
-    let statusText = 'Not Started';
-    
+    // Gleiche Klassen wie in Test.html
+    element.className = 'bg-background-light dark:bg-background-dark p-6 rounded-xl flex flex-col md:flex-row items-start gap-4 transition-shadow hover:shadow-lg border border-black/5 dark:border-white/5';
+
+    // Datum formatieren (wie gehabt)
+    const uploadDate = doc.uploadDate
+        ? doc.uploadDate.replace('T', ' ').replace(/\.\d+$/, '').replace('Z', '')
+        : 'Unknown date';
+
+    // Status (optional später dynamisch)
+    const statusClass = 'bg-gray-500/10 text-gray-500 dark:bg-gray-400/20 dark:text-gray-400';
+    const statusDot = 'bg-gray-500';
+    const statusText = 'Not Started';
+
     element.innerHTML = `
         <div class="flex-1">
             <div class="flex items-center gap-3 mb-2">
@@ -248,13 +249,12 @@ const uploadDate = doc.uploadDate
                 </button>
             </div>
         </div>
-        <div class="w-full md:w-40 h-32 bg-cover bg-center rounded-lg" style="background-color: #f0f0f0;"></div>
+        <div class="w-full md:w-40 h-32 bg-cover bg-center rounded-lg bg-black/5 dark:bg-white/5"></div>
     `;
-    
-    // Add event listeners for document actions
+
     element.querySelector('.doc-download').addEventListener('click', () => downloadDocument(doc.id));
     element.querySelector('.doc-delete').addEventListener('click', () => confirmAndDeleteDocument(doc.id));
-    
+
     return element;
 }
 
