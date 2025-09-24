@@ -91,3 +91,9 @@ export const getDocumentFileUrl = async (documentId) => {
   const blob = await downloadDocumentFile(documentId);
   return URL.createObjectURL(blob);
 };
+
+/** Vorschau herunterladen als Blob */
+export const getDocumentPreviewBlob = async (documentId) => {
+  const res = await api.get(`/documents/${documentId}/preview`, { responseType: 'blob' });
+  return res.data;
+};

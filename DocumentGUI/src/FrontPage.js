@@ -12,6 +12,10 @@ const fileSelectBtn = document.getElementById('fileSelect');
 const searchInput = document.getElementById('searchInput');
 let fileInput = null;
 
+// Konstante für maximale Dateigröße (50MB) und erlaubte Dateiendungen
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const ALLOWED_EXT = ['pdf','txt'];
+
 // Initialize the page
 document.addEventListener('DOMContentLoaded', () => {
     initFileUpload();
@@ -27,7 +31,7 @@ function initFileUpload() {
     fileInput.type = 'file';
     fileInput.style.display = 'none';
     fileInput.multiple = true;
-    fileInput.accept = '.pdf,.doc,.docx,.txt';
+    fileInput.accept = '.pdf,.txt';
     document.body.appendChild(fileInput);
     
     // Connect button to file input
@@ -164,6 +168,21 @@ async function handleFiles(files) {
 
 // Upload a single file
 async function uploadFile(file) {
+    // Frontend Checks
+    const ext = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
+    if (file.size === 0) {
+        showUploadError(file.name, 'File is empty.');
+        return;
+    }
+    if (!ALLOWED_EXT.includes(ext)) {
+        showUploadError(file.name, 'Only PDF and TXT files are allowed.');
+        return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+        showUploadError(file.name, 'File exceeds 50MB limit.');
+        return;
+    }
+
     try {
         const meta = {
             title: file.name,
@@ -171,10 +190,18 @@ async function uploadFile(file) {
         };
         
         const result = await uploadDocumentFile(file, meta);
-        console.log('File uploaded:', result);
         return result;
     } catch (error) {
-        console.error('Error uploading file:', error);
+        // Server-Fehler auslesen
+        let serverMsg = '';
+        if (error.response) {
+            serverMsg = (typeof error.response.data === 'string')
+                ? error.response.data
+                : (error.response.data?.message || 'Upload failed.');
+        } else {
+            serverMsg = error.message;
+        }
+        showUploadError(file.name, serverMsg);
         throw error;
     }
 }
@@ -249,13 +276,49 @@ function createDocumentElement(doc) {
                 </button>
             </div>
         </div>
-        <div class="w-full md:w-40 h-32 bg-cover bg-center rounded-lg bg-black/5 dark:bg-white/5"></div>
+        <div id="document-preview" class="w-full md:w-40 h-32 rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center text-xs text-black/50 dark:text-white/50 overflow-hidden relative">
+            <!-- preview injected -->
+        </div>
     `;
 
     element.querySelector('.doc-download').addEventListener('click', () => downloadDocument(doc.id));
     element.querySelector('.doc-delete').addEventListener('click', () => confirmAndDeleteDocument(doc.id));
+    element.querySelector('.doc-edit').addEventListener('click', () => {
+        window.location.href = `DocumentDetail.html?id=${doc.id}`;
+    });
+
+    if (isPdf(doc)) {
+        loadPdfPreview(doc, element);
+    }
 
     return element;
+}
+
+function isPdf(doc) {
+    return (doc.mimeType && doc.mimeType.toLowerCase() === 'application/pdf') ||
+           (doc.fileName && doc.fileName.toLowerCase().endsWith('.pdf'));
+}
+
+// Preview laden
+async function loadPdfPreview(doc, element) {
+    const box = element.querySelector('#document-preview');
+    if (!box) return;
+    box.innerHTML = `<div class="animate-pulse text-[10px]">Loading preview...</div>`;
+    try {
+        const res = await fetch(`http://localhost:8080/api/documents/${doc.id}/preview`);
+        if (!res.ok) throw new Error('Preview failed: ' + res.status);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        box.style.backgroundImage = `url(${url})`;
+        box.style.backgroundSize = 'cover';
+        box.style.backgroundPosition = 'center';
+        box.innerHTML = '';
+        const overlay = document.createElement('div');
+        overlay.className = 'absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors';
+        box.appendChild(overlay);
+    } catch (e) {
+        box.innerHTML = `<div class="text-red-500 text-[10px] px-2 text-center">Preview unavailable</div>`;
+    }
 }
 
 // Download document
@@ -353,5 +416,56 @@ function proceedWithDelete(id) {
 function confirmAndDeleteDocument(id) {
     showDeleteModal(id);
 }
+
+// === Upload Error Modal ===
+let uploadErrorModal = null;
+
+function createUploadErrorModal() {
+    const modal = document.createElement('div');
+    modal.id = 'upload-error-modal';
+    modal.className = 'fixed inset-0 bg-black/30 dark:bg-black/50 flex items-center justify-center p-4 z-50';
+    modal.style.display = 'none';
+    modal.innerHTML = `
+        <div class="bg-background-light dark:bg-background-dark rounded-xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10 mb-4">
+                <svg class="h-8 w-8 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold text-black/90 dark:text-white/90 mb-2" id="upload-error-title">Upload Failed</h3>
+            <p class="text-black/60 dark:text-white/60 mb-6 text-sm" id="upload-error-message"></p>
+            <button id="upload-error-dismiss" class="w-full px-6 py-3 bg-primary text-white font-bold rounded-lg hover:opacity-90 transition-opacity">Dismiss</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#upload-error-dismiss').addEventListener('click', hideUploadError);
+    return modal;
+}
+
+function showUploadError(fileName, serverMessage) {
+    if (!uploadErrorModal) uploadErrorModal = createUploadErrorModal();
+    const msgEl = uploadErrorModal.querySelector('#upload-error-message');
+    msgEl.textContent = `The file "${fileName}" could not be uploaded. ${normalizeServerMessage(serverMessage)}`;
+    uploadErrorModal.style.display = 'flex';
+}
+
+function hideUploadError() {
+    if (uploadErrorModal) uploadErrorModal.style.display = 'none';
+}
+
+function normalizeServerMessage(m) {
+    if (!m) return 'Please check type and size.';
+    // Rohantwort kann evtl. JSON / Text sein – hier vereinfachen:
+    return m.replace(/^Error:\s*/i,'').trim();
+}
+
+// Initialize on DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+    initFileUpload();
+    initDragAndDrop();
+    loadDocuments();
+    initSearch();
+    uploadErrorModal = createUploadErrorModal();
+});
 
 export { initFileUpload, initDragAndDrop, loadDocuments, initSearch };
