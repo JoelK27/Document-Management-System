@@ -10,20 +10,6 @@ import java.io.*;
 
 public class PdfPreviewService {
 
-    public byte[] renderFirstPageAsPng(File pdfFile) throws IOException {
-        // In PDFBox 3.x: Loader statt PDDocument.load(...)
-        try (PDDocument document = Loader.loadPDF(pdfFile)) {
-            PDFRenderer renderer = new PDFRenderer(document);
-
-            // Erste Seite als Bild rendern (150 DPI für Vorschau)
-            BufferedImage image = renderer.renderImageWithDPI(0, 150);
-
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(image, "png", baos);
-            return baos.toByteArray();
-        }
-    }
-
     public byte[] renderFirstPageAsPng(byte[] pdfBytes) throws IOException {
         try (PDDocument document = Loader.loadPDF(pdfBytes)) {
             PDFRenderer renderer = new PDFRenderer(document);

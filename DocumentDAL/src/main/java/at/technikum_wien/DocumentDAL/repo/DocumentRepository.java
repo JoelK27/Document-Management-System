@@ -9,12 +9,6 @@ import java.util.List;
 
 public interface DocumentRepository extends JpaRepository<Document, Integer> {
 
-    @Query("select d from Document d " +
-            "where lower(d.title) like lower(concat('%', :q, '%')) " +
-            "   or lower(d.content) like lower(concat('%', :q, '%')) " +
-            "   or lower(d.summary) like lower(concat('%', :q, '%'))")
-    List<Document> search(@Param("q") String q);
-
     @Query("select new Document(d.id, d.title, d.content, d.summary, d.uploadDate, d.fileName, d.mimeType, d.size) from Document d")
     List<Document> findAllWithoutFileData();
 

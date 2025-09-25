@@ -3,6 +3,9 @@ package at.technikum_wien.DocumentDAL.controller;
 import at.technikum_wien.DocumentDAL.model.Document;
 import at.technikum_wien.DocumentDAL.repo.DocumentRepository;
 import at.technikum_wien.DocumentDAL.services.PdfPreviewService;
+import at.technikum_wien.DocumentDAL.validation.AllowedMime;
+import at.technikum_wien.DocumentDAL.validation.MaxFileSize;
+import jakarta.validation.Valid;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -47,40 +50,21 @@ public class DocumentController {
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("application/pdf", "text/plain");
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("pdf", "txt");
 
-    private boolean isAllowed(MultipartFile file) {
-        if (file == null || file.isEmpty()) return false;
-        String ct = file.getContentType();
-        String original = file.getOriginalFilename();
-        if (original == null) return false;
-        String ext = original.contains(".") ? original.substring(original.lastIndexOf('.') + 1).toLowerCase() : "";
-        // Manche Browser liefern z.B. bei .txt manchmal "text/plain", bei pdf "application/pdf"
-        return ALLOWED_EXTENSIONS.contains(ext) && (ct == null || ALLOWED_CONTENT_TYPES.contains(ct));
-    }
+    private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
 
-    private static final long MAX_FILE_SIZE = 50L * 1024 * 1024; // 50 MB
-
-    // Multipart Upload: Datei + optionale Metadaten
     @PostMapping(path = "/upload-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadFile(
+            @Valid
+            @AllowedMime(types = { "application/pdf", "text/plain" }, message = "Only PDF and TXT files are allowed.")
+            @MaxFileSize(bytes = MAX_FILE_SIZE, message = "The file to be uploaded can't exceed 50MB")
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "summary", required = false) String summary,
             @RequestParam(value = "content", required = false) String content
     ) throws Exception {
 
-        if (file.isEmpty()){
-            return ResponseEntity.badRequest()
-                    .body("The file can't be empty.");
-        }
-
-        if (!isAllowed(file)) {
-            return ResponseEntity.badRequest()
-                    .body("Only PDF and TXT files are allowed.");
-        }
-
-        if(file.getBytes().length > MAX_FILE_SIZE){
-            return ResponseEntity.badRequest()
-                    .body("The file to be uploaded can't exceed 50MB");
+        if (file == null || file.isEmpty()){
+            return ResponseEntity.badRequest().body("The file can't be empty.");
         }
 
         Document doc = new Document();
@@ -95,6 +79,30 @@ public class DocumentController {
 
         Document saved = repo.save(doc);
         return ResponseEntity.created(URI.create("/api/documents/" + saved.getId())).body(saved);
+    }
+
+    @PutMapping(path = "/{id}/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> replaceFile(
+            @PathVariable int id,
+            @Valid
+            @AllowedMime(types = { "application/pdf", "text/plain" }, message = "Only PDF and TXT files are allowed.")
+            @MaxFileSize(bytes = MAX_FILE_SIZE, message = "The file to be uploaded can't exceed 50MB")
+            @RequestParam("file") MultipartFile file
+    ) throws Exception {
+        var opt = repo.findById(id);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+
+        if (file == null || file.isEmpty()){
+            return ResponseEntity.badRequest().body("The file can't be empty.");
+        }
+
+        var existing = opt.get();
+        existing.setFileName(file.getOriginalFilename());
+        existing.setMimeType(file.getContentType());
+        existing.setSize(file.getSize());
+        existing.setFileData(file.getBytes());
+        Document saved = repo.save(existing);
+        return ResponseEntity.ok(saved);
     }
 
     @GetMapping("/{id}/file")
@@ -114,21 +122,6 @@ public class DocumentController {
                 .header(HttpHeaders.CONTENT_TYPE, contentType)
                 .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(doc.getSize()))
                 .body(doc.getFileData());
-    }
-
-    // Datei ersetzen
-    @PutMapping(path = "/{id}/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Document> replaceFile(@PathVariable int id, @RequestParam("file") MultipartFile file) throws Exception {
-        var opt = repo.findById(id);
-        if (opt.isEmpty()) return ResponseEntity.notFound().build();
-
-        var existing = opt.get();
-        existing.setFileName(file.getOriginalFilename());
-        existing.setMimeType(file.getContentType());
-        existing.setSize(file.getSize());
-        existing.setFileData(file.getBytes());
-        Document saved = repo.save(existing);
-        return ResponseEntity.ok(saved);
     }
 
     // Suche (q optional)
