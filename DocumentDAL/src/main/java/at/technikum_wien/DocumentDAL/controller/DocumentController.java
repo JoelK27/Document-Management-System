@@ -2,10 +2,13 @@ package at.technikum_wien.DocumentDAL.controller;
 
 import at.technikum_wien.DocumentDAL.model.Document;
 import at.technikum_wien.DocumentDAL.repo.DocumentRepository;
+import at.technikum_wien.DocumentDAL.services.DocumentService;
 import at.technikum_wien.DocumentDAL.services.PdfPreviewService;
 import at.technikum_wien.DocumentDAL.validation.AllowedMime;
 import at.technikum_wien.DocumentDAL.validation.MaxFileSize;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -26,58 +29,35 @@ import java.util.Set;
 public class DocumentController {
 
     private final DocumentRepository repo;
+    private final DocumentService documentService;
     private final PdfPreviewService pdfPreviewService = new PdfPreviewService();
+    private static final Logger log = LoggerFactory.getLogger(DocumentController.class);
+    private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
 
-    public DocumentController(DocumentRepository repo) {
+    public DocumentController(DocumentRepository repo, DocumentService documentService) {
         this.repo = repo;
+        this.documentService = documentService;
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<String> handleException(Exception e) {
-        return ResponseEntity.badRequest().body("Error: " + e.getMessage());
-    }
-
-    // JSON-basierter Upload (Textfelder)
     @PostMapping("/upload")
     public ResponseEntity<Document> upload(@RequestBody Document doc) {
-        if (doc.getUploadDate() == null) {
-            doc.setUploadDate(LocalDateTime.now());
-        }
-        Document saved = repo.save(doc);
+        log.info("Uploading JSON document title='{}'", doc.getTitle());
+        Document saved = documentService.createDocument(doc);
         return ResponseEntity.created(URI.create("/api/documents/" + saved.getId())).body(saved);
     }
-
-    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("application/pdf", "text/plain");
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("pdf", "txt");
-
-    private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
 
     @PostMapping(path = "/upload-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadFile(
             @Valid
-            @AllowedMime(types = { "application/pdf", "text/plain" }, message = "Only PDF and TXT files are allowed.")
-            @MaxFileSize(bytes = MAX_FILE_SIZE, message = "The file to be uploaded can't exceed 50MB")
+            @AllowedMime(types = { "application/pdf", "text/plain" })
+            @MaxFileSize(bytes = MAX_FILE_SIZE)
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "summary", required = false) String summary,
             @RequestParam(value = "content", required = false) String content
-    ) throws Exception {
-
-        if (file == null || file.isEmpty()){
-            return ResponseEntity.badRequest().body("The file can't be empty.");
-        }
-
-        Document doc = new Document();
-        doc.setTitle(title != null ? title : file.getOriginalFilename());
-        doc.setSummary(summary);
-        doc.setContent(content);
-        doc.setUploadDate(LocalDateTime.now());
-        doc.setFileName(file.getOriginalFilename());
-        doc.setMimeType(file.getContentType());
-        doc.setSize(file.getSize());
-        doc.setFileData(file.getBytes());
-
-        Document saved = repo.save(doc);
+    ) {
+        log.info("Uploading file '{}'", file != null ? file.getOriginalFilename() : "null");
+        Document saved = documentService.uploadFile(file, title, summary, content);
         return ResponseEntity.created(URI.create("/api/documents/" + saved.getId())).body(saved);
     }
 
@@ -85,23 +65,12 @@ public class DocumentController {
     public ResponseEntity<?> replaceFile(
             @PathVariable int id,
             @Valid
-            @AllowedMime(types = { "application/pdf", "text/plain" }, message = "Only PDF and TXT files are allowed.")
-            @MaxFileSize(bytes = MAX_FILE_SIZE, message = "The file to be uploaded can't exceed 50MB")
+            @AllowedMime(types = { "application/pdf", "text/plain" })
+            @MaxFileSize(bytes = MAX_FILE_SIZE)
             @RequestParam("file") MultipartFile file
-    ) throws Exception {
-        var opt = repo.findById(id);
-        if (opt.isEmpty()) return ResponseEntity.notFound().build();
-
-        if (file == null || file.isEmpty()){
-            return ResponseEntity.badRequest().body("The file can't be empty.");
-        }
-
-        var existing = opt.get();
-        existing.setFileName(file.getOriginalFilename());
-        existing.setMimeType(file.getContentType());
-        existing.setSize(file.getSize());
-        existing.setFileData(file.getBytes());
-        Document saved = repo.save(existing);
+    ) {
+        log.info("Replacing file for document id={}", id);
+        Document saved = documentService.replaceFile(id, file);
         return ResponseEntity.ok(saved);
     }
 
