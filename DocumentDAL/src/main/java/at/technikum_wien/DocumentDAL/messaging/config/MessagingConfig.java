@@ -1,4 +1,4 @@
-package at.technikum_wien.DocumentDAL.messaging;
+package at.technikum_wien.DocumentDAL.messaging.config;
 
 import org.springframework.amqp.core.*;
 import org.springframework.beans.factory.annotation.Value;

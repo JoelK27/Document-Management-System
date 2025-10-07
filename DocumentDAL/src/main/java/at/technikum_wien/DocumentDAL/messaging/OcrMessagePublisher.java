@@ -27,7 +27,8 @@ public class OcrMessagePublisher {
     public void publish(DocumentUploadedEvent event) {
         try {
             rabbitTemplate.convertAndSend(exchange, routingKey, event);
-            log.info("Published DocumentUploadedEvent to exchange='{}' rk='{}' id={}", exchange, routingKey, event.id());
+            log.info("Published DocumentUploadedEvent id={} file='{}' exch='{}' rk='{}'",
+                    event.id(), event.fileName(), exchange, routingKey);
         } catch (Exception e) {
             log.error("Failed to publish DocumentUploadedEvent id={}: {}", event.id(), e.getMessage(), e);
         }
