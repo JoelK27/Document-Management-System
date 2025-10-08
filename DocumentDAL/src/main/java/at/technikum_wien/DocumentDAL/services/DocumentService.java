@@ -6,18 +6,15 @@ import at.technikum_wien.DocumentDAL.messaging.OcrMessagePublisher;
 import at.technikum_wien.DocumentDAL.messaging.events.DocumentUploadedEvent;
 import at.technikum_wien.DocumentDAL.model.Document;
 import at.technikum_wien.DocumentDAL.repo.DocumentRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 
 @Service
 public class DocumentService {
-
-    private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
-    private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
 
     private final DocumentRepository repo;
     private final OcrMessagePublisher publisher;
@@ -37,47 +34,35 @@ public class DocumentService {
     }
 
     public Document uploadFile(MultipartFile file, String title, String summary, String content) {
-        validateFile(file);
         try {
             Document doc = new Document();
             doc.setTitle(title != null ? title : file.getOriginalFilename());
             doc.setSummary(summary);
             doc.setContent(content);
             doc.setUploadDate(LocalDateTime.now());
-            doc.setFileName(file.getOriginalFilename());
-            doc.setMimeType(file.getContentType());
-            doc.setSize(file.getSize());
-            doc.setFileData(file.getBytes());
-            Document saved = repo.save(doc);
-            publishUploaded(saved);
-            return saved;
+            return setDoc(file, doc);
         } catch (Exception e) {
             throw new FileValidationException("Failed to process file: " + e.getMessage());
         }
     }
 
-    public Document replaceFile(int id, MultipartFile file) {
-        validateFile(file);
-        var existing = repo.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
-        try {
-            existing.setFileName(file.getOriginalFilename());
-            existing.setMimeType(file.getContentType());
-            existing.setSize(file.getSize());
-            existing.setFileData(file.getBytes());
-            Document saved = repo.save(existing);
-            publishUploaded(saved);
-            return saved;
-        } catch (Exception e) {
-            throw new FileValidationException("Replace failed: " + e.getMessage());
-        }
+    @NotNull
+    private Document setDoc(MultipartFile file, Document doc) throws IOException {
+        doc.setFileName(file.getOriginalFilename());
+        doc.setMimeType(file.getContentType());
+        doc.setSize(file.getSize());
+        doc.setFileData(file.getBytes());
+        Document saved = repo.save(doc);
+        publishUploaded(saved);
+        return saved;
     }
 
-    private void validateFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new FileValidationException("File is empty");
-        }
-        if (file.getSize() > MAX_FILE_SIZE) {
-            throw new FileValidationException("File exceeds 50MB");
+    public Document replaceFile(int id, MultipartFile file) {
+        var existing = repo.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
+        try {
+            return setDoc(file, existing);
+        } catch (Exception e) {
+            throw new FileValidationException("Replace failed: " + e.getMessage());
         }
     }
 
