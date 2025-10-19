@@ -36,9 +36,6 @@ public class Document {
     private String fileName;
     private String mimeType;
     private long size;
-
-    @Lob
-    @Basic(fetch = FetchType.LAZY)
-    @JsonIgnore // nicht in JSON-Listen/Detail mitschicken
-    private byte[] fileData;
+    private String storageBucket;
+    private String storageKey;
 }

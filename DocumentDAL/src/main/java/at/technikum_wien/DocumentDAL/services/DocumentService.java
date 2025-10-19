@@ -6,22 +6,28 @@ import at.technikum_wien.DocumentDAL.messaging.OcrMessagePublisher;
 import at.technikum_wien.DocumentDAL.messaging.events.DocumentUploadedEvent;
 import at.technikum_wien.DocumentDAL.model.Document;
 import at.technikum_wien.DocumentDAL.repo.DocumentRepository;
+import at.technikum_wien.DocumentDAL.storage.MinioFileStorage;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 public class DocumentService {
 
     private final DocumentRepository repo;
     private final OcrMessagePublisher publisher;
+    private final MinioFileStorage storage;
+    private final String bucket;
 
-    public DocumentService(DocumentRepository repo, OcrMessagePublisher publisher) {
+    public DocumentService(DocumentRepository repo, OcrMessagePublisher publisher, MinioFileStorage storage) {
         this.repo = repo;
         this.publisher = publisher;
+        this.storage = storage;
+        this.bucket = storage.getDefaultBucket();
     }
 
     public Document createDocument(Document doc) {
@@ -33,47 +39,74 @@ public class DocumentService {
         return saved;
     }
 
-    public Document uploadFile(MultipartFile file, String title, String summary, String content) {
+    public Document create(MultipartFile file, String title, String summary, String content) {
         try {
             Document doc = new Document();
-            doc.setTitle(title != null ? title : file.getOriginalFilename());
+            doc.setTitle(title != null ? title : (file.getOriginalFilename() != null ? file.getOriginalFilename() : "Untitled"));
             doc.setSummary(summary);
             doc.setContent(content);
             doc.setUploadDate(LocalDateTime.now());
-            return setDoc(file, doc);
+            doc.setFileName(file.getOriginalFilename());
+            doc.setMimeType(file.getContentType());
+            doc.setSize(file.getSize());
+
+            String key = UUID.randomUUID() + "-" + (file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload");
+            storage.put(bucket, key, file.getBytes(), file.getContentType());
+            doc.setStorageBucket(bucket);
+            doc.setStorageKey(key);
+
+            Document saved = repo.save(doc);
+            publishUploaded(saved);
+            return saved;
         } catch (Exception e) {
-            throw new FileValidationException("Failed to process file: " + e.getMessage());
+            throw new FileValidationException("Failed to upload to storage: " + e.getMessage(), e);
         }
     }
 
-    @NotNull
-    private Document setDoc(MultipartFile file, Document doc) throws IOException {
-        doc.setFileName(file.getOriginalFilename());
-        doc.setMimeType(file.getContentType());
-        doc.setSize(file.getSize());
-        doc.setFileData(file.getBytes());
-        Document saved = repo.save(doc);
-        publishUploaded(saved);
-        return saved;
-    }
 
     public Document replaceFile(int id, MultipartFile file) {
-        var existing = repo.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
+        var doc = repo.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
         try {
-            return setDoc(file, existing);
+            if (doc.getStorageKey() == null) {
+                doc.setStorageKey(UUID.randomUUID() + "-" + (file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload"));
+                doc.setStorageBucket(bucket);
+            }
+            storage.put(doc.getStorageBucket(), doc.getStorageKey(), file.getBytes(), file.getContentType());
+            doc.setFileName(file.getOriginalFilename());
+            doc.setMimeType(file.getContentType());
+            doc.setSize(file.getSize());
+            Document saved = repo.save(doc);
+            publishUploaded(saved);
+            return saved;
         } catch (Exception e) {
-            throw new FileValidationException("Replace failed: " + e.getMessage());
+            throw new FileValidationException("Failed to upload to storage: " + e.getMessage(), e);
         }
+    }
+
+    public byte[] getFileBytes(int id) {
+        var doc = repo.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
+        if (doc.getStorageKey() == null) throw new DocumentNotFoundException(id);
+        try {
+            return storage.get(doc.getStorageBucket(), doc.getStorageKey());
+        } catch (Exception e) {
+            throw new FileValidationException("Failed to load from storage", e);
+        }
+    }
+
+    public void delete(int id) {
+        var doc = repo.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
+        try {
+            if (doc.getStorageKey() != null) {
+                storage.delete(doc.getStorageBucket(), doc.getStorageKey());
+            }
+        } catch (Exception ignore) {}
+        repo.deleteById(id);
     }
 
     private void publishUploaded(Document d) {
         publisher.publish(new DocumentUploadedEvent(
-                d.getId(),
-                d.getTitle(),
-                d.getFileName(),
-                d.getMimeType(),
-                d.getSize(),
-                d.getUploadDate()
+                d.getId(), d.getTitle(), d.getFileName(), d.getMimeType(), d.getSize(), d.getUploadDate(),
+                d.getStorageBucket(), d.getStorageKey()
         ));
     }
 }

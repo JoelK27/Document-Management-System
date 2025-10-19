@@ -3,7 +3,8 @@ import axios from 'axios';
 export const api = axios.create({
   baseURL: '/api',
   timeout: 10000,
-  headers: { 'Content-Type': 'application/json' },
+  // Entfernen: globaler Content-Type stört Multipart
+  // headers: { 'Content-Type': 'application/json' },
 });
 
 /**
@@ -69,19 +70,17 @@ export const uploadDocumentFile = async (file, meta = {}) => {
   if (meta.title) fd.append('title', meta.title);
   if (meta.summary) fd.append('summary', meta.summary);
   if (meta.content) fd.append('content', meta.content);
-  const { data } = await api.post('/documents/upload-file', fd, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-  return data; // DocumentDto
+
+  // Wichtig: KEIN Content-Type setzen -> Browser setzt Boundary
+  const { data } = await api.post('/documents/upload-file', fd);
+  return data;
 };
 
 /** Datei ersetzen (multipart) */
 export const replaceDocumentFile = async (documentId, file) => {
   const fd = new FormData();
   fd.append('file', file);
-  const { data } = await api.put(`/documents/${documentId}/file`, fd, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const { data } = await api.put(`/documents/${documentId}/file`, fd);
   return data;
 };
 

@@ -1,4 +1,4 @@
-package at.technikum_wien.DocumentDAL.messaging.config;
+package at.technikum_wien.DocumentDAL.config;
 
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;

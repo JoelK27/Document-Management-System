@@ -19,18 +19,28 @@ class DocumentTest {
     }
 
     @Test
-    void constructor_WithAllParameters_ShouldSetAllFields() {
-        Document doc = new Document(1, "Title", "Content", "Summary",
-                testDate, "file.pdf", "application/pdf", 1024L);
+    void settersAndGetters_ShouldWorkCorrectly() {
+        document.setId(42);
+        document.setTitle("Test Title");
+        document.setContent("Test Content");
+        document.setSummary("Test Summary");
+        document.setUploadDate(testDate);
+        document.setFileName("test.pdf");
+        document.setMimeType("application/pdf");
+        document.setSize(2048L);
+        document.setStorageBucket("documents");
+        document.setStorageKey("uuid-test.pdf");
 
-        assertEquals(1, doc.getId());
-        assertEquals("Title", doc.getTitle());
-        assertEquals("Content", doc.getContent());
-        assertEquals("Summary", doc.getSummary());
-        assertEquals(testDate, doc.getUploadDate());
-        assertEquals("file.pdf", doc.getFileName());
-        assertEquals("application/pdf", doc.getMimeType());
-        assertEquals(1024L, doc.getSize());
+        assertEquals(42, document.getId());
+        assertEquals("Test Title", document.getTitle());
+        assertEquals("Test Content", document.getContent());
+        assertEquals("Test Summary", document.getSummary());
+        assertEquals(testDate, document.getUploadDate());
+        assertEquals("test.pdf", document.getFileName());
+        assertEquals("application/pdf", document.getMimeType());
+        assertEquals(2048L, document.getSize());
+        assertEquals("documents", document.getStorageBucket());
+        assertEquals("uuid-test.pdf", document.getStorageKey());
     }
 
     @Test
@@ -44,35 +54,8 @@ class DocumentTest {
         assertNull(document.getFileName());
         assertNull(document.getMimeType());
         assertEquals(0L, document.getSize());
-        assertNull(document.getFileData());
-    }
-
-    @Test
-    void settersAndGetters_ShouldWorkCorrectly() {
-        document.setId(42);
-        document.setTitle("Test Title");
-        document.setContent("Test Content");
-        document.setSummary("Test Summary");
-        document.setUploadDate(testDate);
-        document.setFileName("test.pdf");
-        document.setMimeType("application/pdf");
-        document.setSize(2048L);
-        document.setFileData("test data".getBytes());
-
-        assertEquals(42, document.getId());
-        assertEquals("Test Title", document.getTitle());
-        assertEquals("Test Content", document.getContent());
-        assertEquals("Test Summary", document.getSummary());
-        assertEquals(testDate, document.getUploadDate());
-        assertEquals("test.pdf", document.getFileName());
-        assertEquals("application/pdf", document.getMimeType());
-        assertEquals(2048L, document.getSize());
-        assertArrayEquals("test data".getBytes(), document.getFileData());
-    }
-
-    @Test
-    void fileData_ShouldBeNullByDefault() {
-        assertNull(document.getFileData());
+        assertNull(document.getStorageBucket());
+        assertNull(document.getStorageKey());
     }
 
     @Test

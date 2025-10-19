@@ -15,6 +15,47 @@ services:
       - db_data:/var/lib/postgresql/data
     networks:
       - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docuser -d documentdb || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # MinIO Console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+    # Healthcheck optional (curl muss im Image vorhanden sein)
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+    #   interval: 5s
+    #   timeout: 3s
+    #   retries: 30
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
   backend:
     build: ./DocumentDAL
@@ -31,20 +72,55 @@ services:
       DOC_EVENTS_EXCHANGE: documents.exchange
       DOC_EVENTS_QUEUE: documents.uploaded
       DOC_EVENTS_ROUTING_KEY: document.uploaded
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: documents
     depends_on:
-      - database
-      - rabbitmq
+      database:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
     networks:
       - app-network
+    restart: unless-stopped
+
+  worker:
+    build: ./OcrWorker
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      backend:
+        condition: service_started
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+      DOC_EVENTS_QUEUE: documents.uploaded
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      # verhindert Crash, falls Queue noch nicht existiert
+      SPRING_RABBITMQ_LISTENER_SIMPLE_MISSING_QUEUES_FATAL: "false"
+    networks:
+      - app-network
+    restart: unless-stopped
 
   frontend:
     build: ./DocumentGUI
     ports:
-      - "80:80"  # Frontend auf Port 80 für http://localhost/
+      - "80:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_started
     networks:
       - app-network
+    restart: unless-stopped
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -52,38 +128,20 @@ services:
       PGADMIN_DEFAULT_EMAIL: admin@local.at
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
-      - "5050:80" # host:container (access pgAdmin at http://localhost:5050)
+      - "5050:80"
     depends_on:
-      - database
+      database:
+        condition: service_healthy
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     networks:
       - app-network
-
-  rabbitmq:
-    image: rabbitmq:3-management
-    ports:
-      - "5672:5672"
-      - "15672:15672"   # Management UI http://localhost:15672 (guest/guest)
-    networks:
-      - app-network
-
-  worker:
-    build: ./OcrWorker
-    depends_on:
-      - rabbitmq
-    environment:
-      SPRING_RABBITMQ_HOST: rabbitmq
-      SPRING_RABBITMQ_PORT: 5672
-      SPRING_RABBITMQ_USERNAME: guest
-      SPRING_RABBITMQ_PASSWORD: guest
-      DOC_EVENTS_QUEUE: documents.uploaded
-    networks:
-      - app-network
+    restart: unless-stopped
 
 volumes:
   db_data:
   pgadmin_data:
+  minio_data:
 
 networks:
   app-network:

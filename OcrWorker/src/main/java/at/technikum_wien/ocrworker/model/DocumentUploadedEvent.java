@@ -8,5 +8,7 @@ public record DocumentUploadedEvent(
         String fileName,
         String mimeType,
         long size,
-        LocalDateTime uploadDate
+        LocalDateTime uploadDate,
+        String storageBucket,
+        String storageKey
 ) {}
