@@ -1,28 +1,50 @@
 package at.technikum_wien.ocrworker.listener;
 
+import at.technikum_wien.ocrworker.client.BackendClient;
 import at.technikum_wien.ocrworker.model.DocumentUploadedEvent;
+import at.technikum_wien.ocrworker.service.OcrService;
 import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DocumentUploadedListener {
 
-    private final MinioClient minio;
+    private static final Logger log = LoggerFactory.getLogger(DocumentUploadedListener.class);
 
-    public DocumentUploadedListener(MinioClient minio) {
+    private final MinioClient minio;
+    private final OcrService ocrService;
+    private final BackendClient backend;
+
+    public DocumentUploadedListener(MinioClient minio, OcrService ocrService, BackendClient backend) {
         this.minio = minio;
+        this.ocrService = ocrService;
+        this.backend = backend;
     }
 
     @RabbitListener(queues = "${DOC_EVENTS_QUEUE:documents.uploaded}")
     public void onMessage(DocumentUploadedEvent evt) throws Exception {
+        if (evt.mimeType() == null || !evt.mimeType().equalsIgnoreCase("application/pdf")) {
+            log.info("Skip non-PDF id={} mime={}", evt.id(), evt.mimeType());
+            return;
+        }
+        log.info("OCR pipeline start id={} bucket={} key={}", evt.id(), evt.storageBucket(), evt.storageKey());
+
+        byte[] fileBytes;
         try (var stream = minio.getObject(GetObjectArgs.builder()
                 .bucket(evt.storageBucket())
                 .object(evt.storageKey())
                 .build())) {
-            byte[] fileBytes = stream.readAllBytes();
-            // TODO: OCR ausführen
+            fileBytes = stream.readAllBytes();
         }
+
+        String text = ocrService.extractPreferPdfTextThenOcr(fileBytes);
+        log.info("OCR pipeline extracted {} chars for id={}", text.length(), evt.id());
+
+        backend.updateContent(evt.id(), text);
+        log.info("Content updated in backend for id={}", evt.id());
     }
 }

@@ -101,11 +101,12 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: guest
       SPRING_RABBITMQ_PASSWORD: guest
+      DOC_EVENTS_EXCHANGE: documents.exchange
       DOC_EVENTS_QUEUE: documents.uploaded
+      DOC_EVENTS_ROUTING_KEY: document.uploaded
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
-      # verhindert Crash, falls Queue noch nicht existiert
       SPRING_RABBITMQ_LISTENER_SIMPLE_MISSING_QUEUES_FATAL: "false"
     networks:
       - app-network

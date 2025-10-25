@@ -14,7 +14,7 @@ public class Document {
 
     public Document() {}
 
-    public Document(int id, String title, String content, String summary, LocalDateTime uploadDate,
+    public Document(Integer id, String title, String content, String summary, LocalDateTime uploadDate,
                     String fileName, String mimeType, long size) {
         this.id = id;
         this.title = title;
@@ -26,11 +26,27 @@ public class Document {
         this.size = size;
     }
 
+    public Document(Integer id, String title, String summary, LocalDateTime uploadDate,
+                    String fileName, String mimeType, long size) {
+        this.id = id;
+        this.title = title;
+        this.summary = summary;
+        this.uploadDate = uploadDate;
+        this.fileName = fileName;
+        this.mimeType = mimeType;
+        this.size = size;
+    }
+
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Integer id;
     private String title;
+
+    @Column(columnDefinition = "text")
     private String content;
+
+    @Column(columnDefinition = "text")
     private String summary;
+
     private LocalDateTime uploadDate;
 
     private String fileName;
