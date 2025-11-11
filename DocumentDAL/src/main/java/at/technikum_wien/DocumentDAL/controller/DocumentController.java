@@ -19,9 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api/documents")
@@ -29,23 +27,25 @@ import java.util.Set;
 public class DocumentController {
 
     private final DocumentRepository repo;
-    private final DocumentService documentService;
+    private final DocumentService service;
     private final PdfPreviewService pdfPreviewService = new PdfPreviewService();
     private static final Logger log = LoggerFactory.getLogger(DocumentController.class);
     private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
 
-    public DocumentController(DocumentRepository repo, DocumentService documentService) {
+    public DocumentController(DocumentRepository repo, DocumentService service) {
         this.repo = repo;
-        this.documentService = documentService;
+        this.service = service;
     }
 
+    // JSON-Metadaten speichern (ohne Datei)
     @PostMapping("/upload")
     public ResponseEntity<Document> upload(@RequestBody Document doc) {
         log.info("Uploading JSON document title='{}'", doc.getTitle());
-        Document saved = documentService.createDocument(doc);
+        Document saved = service.createDocument(doc);
         return ResponseEntity.created(URI.create("/api/documents/" + saved.getId())).body(saved);
     }
 
+    // Datei hochladen (Multipart) -> MinIO
     @PostMapping(path = "/upload-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadFile(
             @Valid
@@ -57,10 +57,11 @@ public class DocumentController {
             @RequestParam(value = "content", required = false) String content
     ) {
         log.info("Uploading file '{}'", file != null ? file.getOriginalFilename() : "null");
-        Document saved = documentService.uploadFile(file, title, summary, content);
+        Document saved = service.create(file, title, summary, content);
         return ResponseEntity.created(URI.create("/api/documents/" + saved.getId())).body(saved);
     }
 
+    // Datei ersetzen -> MinIO
     @PutMapping(path = "/{id}/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> replaceFile(
             @PathVariable int id,
@@ -70,17 +71,19 @@ public class DocumentController {
             @RequestParam("file") MultipartFile file
     ) {
         log.info("Replacing file for document id={}", id);
-        Document saved = documentService.replaceFile(id, file);
+        Document saved = service.replaceFile(id, file);
         return ResponseEntity.ok(saved);
     }
 
+    // Datei herunterladen aus MinIO
     @GetMapping("/{id}/file")
     public ResponseEntity<byte[]> downloadFile(@PathVariable int id) {
-        var opt = repo.findById(id);
-        if (opt.isEmpty() || opt.get().getFileData() == null) {
+        var doc = repo.findById(id).orElse(null);
+        if (doc == null) {
             return ResponseEntity.notFound().build();
         }
-        var doc = opt.get();
+        byte[] data = service.getFileBytes(id);
+
         String fileName = doc.getFileName() != null ? doc.getFileName() : ("document-" + id);
         String contentType = doc.getMimeType() != null ? doc.getMimeType() : MediaType.APPLICATION_OCTET_STREAM_VALUE;
         String contentDisposition = "attachment; filename*=UTF-8''" +
@@ -89,14 +92,15 @@ public class DocumentController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
                 .header(HttpHeaders.CONTENT_TYPE, contentType)
-                .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(doc.getSize()))
-                .body(doc.getFileData());
+                .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(data.length))
+                .body(data);
     }
 
     // Suche (q optional)
     @GetMapping("/search")
     public ResponseEntity<List<Document>> search(@RequestParam(value = "q", required = false, defaultValue = "") String q) {
-        if (q == null ||q.isBlank()) {
+        if (q == null || q.isBlank()) {
+            // Falls findAllWithoutFileData existiert, weiterverwenden; bei MinIO gibt es kein fileData mehr.
             return ResponseEntity.ok(repo.findAllWithoutFileData());
         }
         List<Document> results = repo.searchWithoutFileData(q);
@@ -134,35 +138,37 @@ public class DocumentController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // DELETE /api/documents/{id}
+    // DELETE /api/documents/{id} (MinIO + DB)
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable int id) {
         if (!repo.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
-        repo.deleteById(id);
+        service.delete(id); // entfernt Objekt in MinIO und Datensatz in DB
         return ResponseEntity.noContent().build();
     }
 
+    // PDF-Preview (erste Seite als PNG) aus MinIO
     @GetMapping("/{id}/preview")
     public ResponseEntity<?> preview(@PathVariable int id) {
         return repo.findById(id).map(doc -> {
-            if (doc.getMimeType() == null ||
-                    !doc.getMimeType().equalsIgnoreCase("application/pdf") ||
-                    doc.getFileData() == null) {
+            if (doc.getMimeType() == null || !doc.getMimeType().equalsIgnoreCase("application/pdf")) {
                 return ResponseEntity.notFound().build();
             }
             try {
-                byte[] png = pdfPreviewService.renderFirstPageAsPng(doc.getFileData());
+                byte[] src = service.getFileBytes(id);
+                byte[] png = pdfPreviewService.renderFirstPageAsPng(src);
                 return ResponseEntity.ok()
                         .cacheControl(CacheControl.noStore())
                         .contentType(MediaType.IMAGE_PNG)
-                        .header(HttpHeaders.CONTENT_DISPOSITION,
-                                "inline; filename=\"preview-" + doc.getId() + ".png\"")
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"preview-" + doc.getId() + ".png\"")
                         .body(png);
             } catch (IOException e) {
-                return ResponseEntity.internalServerError()
-                        .body(null);
+                log.error("Preview rendering failed for id={}", id, e);
+                return ResponseEntity.internalServerError().body(null);
+            } catch (Exception e) {
+                log.error("Storage load failed for id={}", id, e);
+                return ResponseEntity.internalServerError().body(null);
             }
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }

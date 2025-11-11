@@ -1,4 +1,4 @@
-package at.technikum_wien.DocumentDAL.messaging.config;
+package at.technikum_wien.DocumentDAL.config;
 
 import org.springframework.amqp.core.*;
 import org.springframework.beans.factory.annotation.Value;
@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class MessagingConfig {
+public class OcrAmqpTopology {
 
     @Value("${DOC_EVENTS_EXCHANGE:documents.exchange}")
     private String exchangeName;
@@ -18,17 +18,17 @@ public class MessagingConfig {
     private String routingKey;
 
     @Bean
-    public TopicExchange documentsExchange() {
-        return new TopicExchange(exchangeName, true, false);
+    public DirectExchange documentsExchange() {
+        return new DirectExchange(exchangeName, true, false);
     }
 
     @Bean
-    public Queue documentsUploadedQueue() {
-        return QueueBuilder.durable(queueName).build();
+    public Queue documentsQueue() {
+        return new Queue(queueName, true);
     }
 
     @Bean
-    public Binding documentsUploadedBinding(Queue documentsUploadedQueue, TopicExchange documentsExchange) {
-        return BindingBuilder.bind(documentsUploadedQueue).to(documentsExchange).with(routingKey);
+    public Binding documentsBinding(Queue documentsQueue, DirectExchange documentsExchange) {
+        return BindingBuilder.bind(documentsQueue).to(documentsExchange).with(routingKey);
     }
 }

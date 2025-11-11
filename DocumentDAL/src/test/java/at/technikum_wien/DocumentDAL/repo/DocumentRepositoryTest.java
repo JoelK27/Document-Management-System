@@ -33,9 +33,9 @@ class DocumentRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        // Alle bestehenden Daten löschen
         documentRepository.deleteAll();
         entityManager.flush();
+
         testDocument1 = new Document();
         testDocument1.setTitle("Spring Boot Guide");
         testDocument1.setSummary("A comprehensive guide to Spring Boot");
@@ -44,7 +44,6 @@ class DocumentRepositoryTest {
         testDocument1.setMimeType("application/pdf");
         testDocument1.setSize(1024L);
         testDocument1.setUploadDate(LocalDateTime.now());
-        testDocument1.setFileData("Spring Boot content".getBytes());
 
         testDocument2 = new Document();
         testDocument2.setTitle("Java Basics");
@@ -54,22 +53,19 @@ class DocumentRepositoryTest {
         testDocument2.setMimeType("text/plain");
         testDocument2.setSize(512L);
         testDocument2.setUploadDate(LocalDateTime.now());
-        testDocument2.setFileData("Java content".getBytes());
 
         entityManager.persistAndFlush(testDocument1);
         entityManager.persistAndFlush(testDocument2);
     }
 
     @Test
-    void findById_ShouldReturnDocumentWithFileData() {
+    void findById_ShouldReturnDocument() {
         Optional<Document> found = documentRepository.findById(testDocument1.getId());
 
         assertTrue(found.isPresent());
         Document document = found.get();
         assertEquals("Spring Boot Guide", document.getTitle());
         assertEquals("spring-boot-guide.pdf", document.getFileName());
-        assertNotNull(document.getFileData());
-        assertArrayEquals("Spring Boot content".getBytes(), document.getFileData());
     }
 
     @Test
@@ -82,7 +78,7 @@ class DocumentRepositoryTest {
     }
 
     @Test
-    void findAllWithoutFileData_ShouldReturnDocumentsWithoutFileData() {
+    void findAllWithoutFileData_ShouldReturnDocuments() {
         List<Document> documents = documentRepository.findAllWithoutFileData();
 
         assertEquals(2, documents.size());
@@ -94,8 +90,6 @@ class DocumentRepositoryTest {
         assertNotNull(document);
         assertEquals("Spring Boot Guide", document.getTitle());
         assertEquals("spring-boot-guide.pdf", document.getFileName());
-        // FileData sollte null sein bei dieser Query
-        assertNull(document.getFileData());
     }
 
     @Test
@@ -105,7 +99,6 @@ class DocumentRepositoryTest {
         assertEquals(1, results.size());
         Document document = results.get(0);
         assertEquals("Spring Boot Guide", document.getTitle());
-        assertNull(document.getFileData());
     }
 
     @Test
@@ -115,7 +108,6 @@ class DocumentRepositoryTest {
         assertEquals(1, results.size());
         Document document = results.get(0);
         assertEquals("Java Basics", document.getTitle());
-        assertNull(document.getFileData());
     }
 
     @Test

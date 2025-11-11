@@ -2,6 +2,7 @@ package at.technikum_wien.DocumentDAL.controller;
 
 import at.technikum_wien.DocumentDAL.model.Document;
 import at.technikum_wien.DocumentDAL.repo.DocumentRepository;
+import at.technikum_wien.DocumentDAL.services.DocumentService;
 import at.technikum_wien.DocumentDAL.services.PdfPreviewService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,9 +11,6 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -40,6 +38,9 @@ class DocumentControllerTest {
     private DocumentRepository documentRepository;
 
     @MockitoBean
+    private DocumentService documentService;
+
+    @MockitoBean
     private PdfPreviewService pdfPreviewService;
 
     @Autowired
@@ -47,15 +48,6 @@ class DocumentControllerTest {
 
     private Document testDocument;
     private List<Document> testDocuments;
-
-    @TestConfiguration
-    static class TestConfig {
-        @Bean
-        @Primary
-        public PdfPreviewService pdfPreviewService() {
-            return mock(PdfPreviewService.class);
-        }
-    }
 
     @BeforeEach
     void setUp() {
@@ -68,7 +60,6 @@ class DocumentControllerTest {
         testDocument.setMimeType("application/pdf");
         testDocument.setSize(1024L);
         testDocument.setUploadDate(LocalDateTime.now());
-        testDocument.setFileData("Test file content".getBytes());
 
         Document testDocument2 = new Document();
         testDocument2.setId(2);
@@ -81,8 +72,7 @@ class DocumentControllerTest {
 
         testDocuments = Arrays.asList(testDocument, testDocument2);
 
-        // Reset mocks before each test
-        reset(documentRepository, pdfPreviewService);
+        reset(documentRepository, pdfPreviewService, documentService);
     }
 
     @Test
@@ -140,16 +130,16 @@ class DocumentControllerTest {
         savedDocument.setContent("New Content");
         savedDocument.setUploadDate(LocalDateTime.now());
 
-        when(documentRepository.save(any(Document.class))).thenReturn(savedDocument);
+        when(documentService.createDocument(any(Document.class))).thenReturn(savedDocument);
 
         mockMvc.perform(post("/api/documents/upload")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(newDocument)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(newDocument)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(3))
                 .andExpect(jsonPath("$.title").value("New Document"));
 
-        verify(documentRepository, times(1)).save(any(Document.class));
+        verify(documentService, times(1)).createDocument(any(Document.class));
     }
 
     @Test
@@ -169,18 +159,18 @@ class DocumentControllerTest {
         savedDocument.setSize(file.getSize());
         savedDocument.setUploadDate(LocalDateTime.now());
 
-        when(documentRepository.save(any(Document.class))).thenReturn(savedDocument);
+        when(documentService.create(any(), any(), any(), any())).thenReturn(savedDocument);
 
         mockMvc.perform(multipart("/api/documents/upload-file")
-                .file(file)
-                .param("title", "Test Title")
-                .param("summary", "Test Summary"))
+                        .file(file)
+                        .param("title", "Test Title")
+                        .param("summary", "Test Summary"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(4))
                 .andExpect(jsonPath("$.title").value("Test Title"))
                 .andExpect(jsonPath("$.fileName").value("test.pdf"));
 
-        verify(documentRepository, times(1)).save(any(Document.class));
+        verify(documentService, times(1)).create(any(), any(), any(), any());
     }
 
     @Test
@@ -193,11 +183,11 @@ class DocumentControllerTest {
         );
 
         mockMvc.perform(multipart("/api/documents/upload-file")
-                .file(file)
-                .param("title", "Test Title"))
+                        .file(file)
+                        .param("title", "Test Title"))
                 .andExpect(status().isBadRequest());
 
-        verify(documentRepository, never()).save(any(Document.class));
+        verify(documentService, never()).create(any(), any(), any(), any());
     }
 
     @Test
@@ -211,11 +201,11 @@ class DocumentControllerTest {
         );
 
         mockMvc.perform(multipart("/api/documents/upload-file")
-                .file(file)
-                .param("title", "Large File"))
+                        .file(file)
+                        .param("title", "Large File"))
                 .andExpect(status().isBadRequest());
 
-        verify(documentRepository, never()).save(any(Document.class));
+        verify(documentService, never()).create(any(), any(), any(), any());
     }
 
     @Test
@@ -224,7 +214,7 @@ class DocumentControllerTest {
                 .thenReturn(Arrays.asList(testDocument));
 
         mockMvc.perform(get("/api/documents/search")
-                .param("q", "test"))
+                        .param("q", "test"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(1))
@@ -248,14 +238,17 @@ class DocumentControllerTest {
     @Test
     void downloadFile_WhenDocumentExists_ShouldReturnFileData() throws Exception {
         when(documentRepository.findById(1)).thenReturn(Optional.of(testDocument));
+        when(documentService.getFileBytes(1)).thenReturn("PDF content".getBytes());
 
         mockMvc.perform(get("/api/documents/1/file"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "application/pdf"))
-                .andExpect(header().string("Content-Disposition", 
-                    "attachment; filename*=UTF-8''test.pdf"));
+                .andExpect(header().string("Content-Disposition",
+                        "attachment; filename*=UTF-8''test.pdf"))
+                .andExpect(content().bytes("PDF content".getBytes()));
 
         verify(documentRepository, times(1)).findById(1);
+        verify(documentService, times(1)).getFileBytes(1);
     }
 
     @Test
@@ -266,6 +259,7 @@ class DocumentControllerTest {
                 .andExpect(status().isNotFound());
 
         verify(documentRepository, times(1)).findById(999);
+        verify(documentService, never()).getFileBytes(anyInt());
     }
 
     @Test
@@ -276,7 +270,7 @@ class DocumentControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(documentRepository, times(1)).existsById(1);
-        verify(documentRepository, times(1)).deleteById(1);
+        verify(documentService, times(1)).delete(1);
     }
 
     @Test
@@ -287,7 +281,7 @@ class DocumentControllerTest {
                 .andExpect(status().isNotFound());
 
         verify(documentRepository, times(1)).existsById(999);
-        verify(documentRepository, never()).deleteById(999);
+        verify(documentService, never()).delete(anyInt());
     }
 
     @Test
@@ -302,8 +296,8 @@ class DocumentControllerTest {
         when(documentRepository.save(any(Document.class))).thenReturn(updatedDocument);
 
         mockMvc.perform(put("/api/documents/1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(updatedDocument)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updatedDocument)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Updated Title"))
                 .andExpect(jsonPath("$.summary").value("Updated Summary"));
@@ -320,39 +314,13 @@ class DocumentControllerTest {
         when(documentRepository.findById(999)).thenReturn(Optional.empty());
 
         mockMvc.perform(put("/api/documents/999")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(updatedDocument)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updatedDocument)))
                 .andExpect(status().isNotFound());
 
         verify(documentRepository, times(1)).findById(999);
         verify(documentRepository, never()).save(any(Document.class));
     }
-
-    /* @Test
-    void previewDocument_WithValidPdf_ShouldReturnPreviewImage() throws Exception {
-        // Arrange
-        byte[] mockPreviewImage = "mock-image-data".getBytes();
-
-        // Sicherstellen, dass testDocument PDF-Eigenschaften hat
-        testDocument.setMimeType("application/pdf");
-        testDocument.setFileData("valid pdf content".getBytes());
-
-        when(documentRepository.findById(1)).thenReturn(Optional.of(testDocument));
-        when(pdfPreviewService.renderFirstPageAsPng(testDocument.getFileData()))
-                .thenReturn(mockPreviewImage);
-
-        // Act & Assert
-        mockMvc.perform(get("/api/documents/1/preview"))
-                .andExpect(status().isOk())
-                .andExpect(header().string("Content-Type", "image/png"))
-                .andExpect(header().string("Content-Disposition",
-                        "inline; filename=\"preview-1.png\""))
-                .andExpect(content().bytes(mockPreviewImage));
-
-        verify(documentRepository, times(1)).findById(1);
-        verify(pdfPreviewService, times(1)).renderFirstPageAsPng(testDocument.getFileData());
-    }
-    */
 
     @Test
     void previewDocument_WhenDocumentNotFound_ShouldReturn404() throws Exception {
@@ -363,6 +331,7 @@ class DocumentControllerTest {
 
         verify(documentRepository, times(1)).findById(999);
         verify(pdfPreviewService, never()).renderFirstPageAsPng(any(byte[].class));
+        verify(documentService, never()).getFileBytes(anyInt());
     }
 
     @Test
@@ -375,36 +344,20 @@ class DocumentControllerTest {
 
         verify(documentRepository, times(1)).findById(1);
         verify(pdfPreviewService, never()).renderFirstPageAsPng(any(byte[].class));
+        verify(documentService, never()).getFileBytes(anyInt());
     }
 
     @Test
-    void previewDocument_WhenFileDataIsNull_ShouldReturn404() throws Exception {
+    void previewDocument_WhenFileMissing_ShouldReturn500() throws Exception {
         testDocument.setMimeType("application/pdf");
-        testDocument.setFileData(null);  // Null file data
         when(documentRepository.findById(1)).thenReturn(Optional.of(testDocument));
-
-        mockMvc.perform(get("/api/documents/1/preview"))
-                .andExpect(status().isNotFound());
-
-        verify(documentRepository, times(1)).findById(1);
-        verify(pdfPreviewService, never()).renderFirstPageAsPng(any(byte[].class));
-    }
-
-    /*
-    @Test
-    void previewDocument_WhenPdfServiceFails_ShouldReturn500() throws Exception {
-        testDocument.setMimeType("application/pdf");
-        testDocument.setFileData("invalid pdf data".getBytes());
-
-        when(documentRepository.findById(1)).thenReturn(Optional.of(testDocument));
-        when(pdfPreviewService.renderFirstPageAsPng(any(byte[].class)))
-                .thenThrow(new IOException("PDF processing failed"));
+        when(documentService.getFileBytes(1)).thenThrow(new IOException("missing"));
 
         mockMvc.perform(get("/api/documents/1/preview"))
                 .andExpect(status().isInternalServerError());
 
         verify(documentRepository, times(1)).findById(1);
-        verify(pdfPreviewService, times(1)).renderFirstPageAsPng(any(byte[].class));
+        verify(documentService, times(1)).getFileBytes(1);
+        verify(pdfPreviewService, never()).renderFirstPageAsPng(any(byte[].class));
     }
-    */
 }
