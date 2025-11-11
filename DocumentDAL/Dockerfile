@@ -1,22 +1,23 @@
-FROM openjdk:21-jdk-slim
+# --- Build Stage ---
+FROM maven:3.9.8-eclipse-temurin-21 AS build
+WORKDIR /workspace
 
-WORKDIR /app
-
-# Copy Maven wrapper and pom.xml first for better caching
+# Copy maven wrapper and pom first for caching
 COPY mvnw .
 COPY mvnw.cmd .
 COPY .mvn .mvn
 COPY pom.xml .
 
-# Download dependencies
 RUN chmod +x mvnw && ./mvnw dependency:go-offline -B
 
-# Copy source code
+# Copy source and build
 COPY src src
-
-# Build the application
 RUN ./mvnw clean package -DskipTests
 
-# Run the application
+# --- Runtime Stage ---
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=build /workspace/target/DocumentDAL-0.0.1-SNAPSHOT.jar app.jar
+
 EXPOSE 8080
-CMD ["java", "-jar", "target/DocumentDAL-0.0.1-SNAPSHOT.jar"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
