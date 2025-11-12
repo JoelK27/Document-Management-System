@@ -54,4 +54,5 @@ public class Document {
     private long size;
     private String storageBucket;
     private String storageKey;
+    private String previewKey;
 }

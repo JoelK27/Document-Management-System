@@ -21,13 +21,13 @@ public class DocumentService {
     private final DocumentRepository repo;
     private final OcrMessagePublisher publisher;
     private final MinioFileStorage storage;
-    private final String bucket;
+    private final String documentBucket;
 
     public DocumentService(DocumentRepository repo, OcrMessagePublisher publisher, MinioFileStorage storage) {
         this.repo = repo;
         this.publisher = publisher;
         this.storage = storage;
-        this.bucket = storage.getDefaultBucket();
+        this.documentBucket = storage.getDefaultBucket();
     }
 
     public Document createDocument(Document doc) {
@@ -51,8 +51,8 @@ public class DocumentService {
             doc.setSize(file.getSize());
 
             String key = UUID.randomUUID() + "-" + (file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload");
-            storage.put(bucket, key, file.getBytes(), file.getContentType());
-            doc.setStorageBucket(bucket);
+            storage.put(documentBucket, key, file.getBytes(), file.getContentType());
+            doc.setStorageBucket(documentBucket);
             doc.setStorageKey(key);
 
             Document saved = repo.save(doc);
@@ -69,7 +69,7 @@ public class DocumentService {
         try {
             if (doc.getStorageKey() == null) {
                 doc.setStorageKey(UUID.randomUUID() + "-" + (file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload"));
-                doc.setStorageBucket(bucket);
+                doc.setStorageBucket(documentBucket);
             }
             storage.put(doc.getStorageBucket(), doc.getStorageKey(), file.getBytes(), file.getContentType());
             doc.setFileName(file.getOriginalFilename());

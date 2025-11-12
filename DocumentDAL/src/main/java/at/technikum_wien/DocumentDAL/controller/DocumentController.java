@@ -28,13 +28,14 @@ public class DocumentController {
 
     private final DocumentRepository repo;
     private final DocumentService service;
-    private final PdfPreviewService pdfPreviewService = new PdfPreviewService();
+    private final PdfPreviewService pdfPreviewService;
     private static final Logger log = LoggerFactory.getLogger(DocumentController.class);
     private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
 
-    public DocumentController(DocumentRepository repo, DocumentService service) {
+    public DocumentController(DocumentRepository repo, DocumentService documentService,  PdfPreviewService pdfPreviewService) {
         this.repo = repo;
-        this.service = service;
+        this.service = documentService;
+        this.pdfPreviewService = pdfPreviewService;
     }
 
     // JSON-Metadaten speichern (ohne Datei)
@@ -157,7 +158,7 @@ public class DocumentController {
             }
             try {
                 byte[] src = service.getFileBytes(id);
-                byte[] png = pdfPreviewService.renderFirstPageAsPng(src);
+                byte[] png = pdfPreviewService.getPreview(doc, src);
                 return ResponseEntity.ok()
                         .cacheControl(CacheControl.noStore())
                         .contentType(MediaType.IMAGE_PNG)

@@ -37,11 +37,11 @@ services:
       - app-network
     restart: unless-stopped
     # Healthcheck optional (curl muss im Image vorhanden sein)
-    # healthcheck:
-    #   test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
-    #   interval: 5s
-    #   timeout: 3s
-    #   retries: 30
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
   rabbitmq:
     image: rabbitmq:3-management
