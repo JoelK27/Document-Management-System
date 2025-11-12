@@ -1,5 +1,6 @@
 package at.technikum_wien.DocumentDAL.controller;
 
+import at.technikum_wien.DocumentDAL.exceptions.DocumentNotFoundException;
 import at.technikum_wien.DocumentDAL.model.Document;
 import at.technikum_wien.DocumentDAL.repo.DocumentRepository;
 import at.technikum_wien.DocumentDAL.services.DocumentService;
@@ -13,6 +14,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,6 +22,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/documents")
@@ -106,6 +109,12 @@ public class DocumentController {
         }
         List<Document> results = repo.searchWithoutFileData(q);
         return ResponseEntity.ok(results);
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<Document> partialUpdate(@PathVariable Integer id, @RequestBody Map<String, Object> updates) {
+        Document updatedDoc = service.partialUpdate(id, updates);
+        return ResponseEntity.ok(updatedDoc);
     }
 
     // GET /api/documents/

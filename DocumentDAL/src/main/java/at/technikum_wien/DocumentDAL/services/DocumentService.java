@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -101,6 +102,15 @@ public class DocumentService {
             }
         } catch (Exception ignore) {}
         repo.deleteById(id);
+    }
+
+    public Document partialUpdate(int id, Map<String, Object> updates) {
+        Document doc = repo.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
+
+        if (updates.containsKey("content")) {
+            doc.setContent((String) updates.get("content"));
+        }
+        return repo.save(doc);
     }
 
     private void publishUploaded(Document d) {
