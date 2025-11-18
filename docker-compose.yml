@@ -144,7 +144,7 @@ services:
     image: document-ms/genai-worker:local
     environment:
       GENAI_ENABLED: "true"
-      GOOGLE_API_KEY: "${GOOGLE_API_KEY:-AIzaSyBFV3Q_xrZ-obDMrWllsi_dCIaJoMJ0GfI}"
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY:-}"
       GENAI_ENDPOINT: "${GENAI_ENDPOINT:-https://generativelanguage.googleapis.com}"
       GENAI_MODEL: "${GENAI_MODEL:-gemini-2.0-flash}"
       GENAI_TIMEOUT: "15000"
