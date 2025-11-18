@@ -10,6 +10,7 @@ import org.springframework.amqp.support.converter.DefaultClassMapper;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.amqp.core.*;
 
 import java.util.Map;
 
@@ -18,6 +19,31 @@ public class RabbitConfig {
 
     private static final String BACKEND_EVENT_FQCN =
             "at.technikum_wien.DocumentDAL.messaging.events.DocumentUploadedEvent";
+
+    // Hauptqueue für OCR->GenAI
+    @Bean
+    public Queue genaiQueue() {
+        return QueueBuilder.durable("documents.ocr.completed")
+                .withArgument("x-dead-letter-exchange", "dlx")
+                .withArgument("x-dead-letter-routing-key", "documents.genai.failed")
+                .build();
+    }
+
+    // DLX+DLQ für fehlerhafte GenAI‑Nachrichten
+    @Bean
+    public DirectExchange dlx() {
+        return new DirectExchange("dlx");
+    }
+
+    @Bean
+    public Queue genaiDlq() {
+        return QueueBuilder.durable("documents.genai.failed").build();
+    }
+
+    @Bean
+    public Binding dlqBinding() {
+        return BindingBuilder.bind(genaiDlq()).to(dlx()).with("documents.genai.failed");
+    }
 
     @Bean
     public ClassMapper eventClassMapper() {

@@ -10,10 +10,7 @@ import at.technikum_wien.DocumentDAL.validation.MaxFileSize;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.CacheControl;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -181,5 +178,18 @@ public class DocumentController {
                 return ResponseEntity.internalServerError().body(null);
             }
         }).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}/summary")
+    public ResponseEntity<?> updateSummary(@PathVariable int id, @RequestBody Map<String,String> body) {
+        String summary = body.get("summary");
+        try {
+            Document updated = service.updateSummary(id, summary);
+            return ResponseEntity.ok(updated);
+        } catch (DocumentNotFoundException ex) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", ex.getMessage()));
+        }
     }
 }

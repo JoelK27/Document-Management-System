@@ -119,4 +119,12 @@ public class DocumentService {
                 d.getStorageBucket(), d.getStorageKey()
         ));
     }
+
+    public Document updateSummary(int id, String summary) {
+        var doc = repo.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
+        doc.setSummary(summary);
+        doc.setSummaryGeneratedAt(LocalDateTime.now());
+        doc.setSummaryStatus("GENAI_DONE");
+        return repo.save(doc);
+    }
 }

@@ -1,6 +1,7 @@
 # --- Build Stage ---
 FROM maven:3.9.8-eclipse-temurin-21 AS build
 WORKDIR /workspace
+ENV MAVEN_OPTS="-Dfile.encoding=UTF-8"
 COPY pom.xml .
 COPY src ./src
 RUN mvn -q clean package -DskipTests

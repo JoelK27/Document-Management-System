@@ -139,6 +139,34 @@ services:
       - app-network
     restart: unless-stopped
 
+  genai-worker:
+    build: ./OcrWorker
+    image: document-ms/genai-worker:local
+    environment:
+      GENAI_ENABLED: "true"
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY:-AIzaSyBFV3Q_xrZ-obDMrWllsi_dCIaJoMJ0GfI}"
+      GENAI_ENDPOINT: "${GENAI_ENDPOINT:-https://generativelanguage.googleapis.com}"
+      GENAI_MODEL: "${GENAI_MODEL:-gemini-2.0-flash}"
+      GENAI_TIMEOUT: "15000"
+      GENAI_MAX_RETRIES: "3"
+      BACKEND_BASE_URL: "http://backend:8080/api"
+      SPRING_RABBITMQ_HOST: "rabbitmq"
+      SPRING_RABBITMQ_PORT: "5672"
+      SPRING_RABBITMQ_USERNAME: "guest"
+      SPRING_RABBITMQ_PASSWORD: "guest"
+      MINIO_ENDPOINT: "http://minio:9000"
+      MINIO_ACCESS_KEY: "minioadmin"
+      MINIO_SECRET_KEY: "minioadmin"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      backend:
+        condition: service_started
+      minio:
+        condition: service_started
+    networks:
+      - app-network
+
 volumes:
   db_data:
   pgadmin_data:

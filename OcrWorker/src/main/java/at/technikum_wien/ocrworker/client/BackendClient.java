@@ -52,6 +52,18 @@ public class BackendClient {
         }
     }
 
+    // PUT summary endpoint used by GenAI worker
+    public void updateSummary(int id, String summary) throws Exception {
+        byte[] body = om.writeValueAsBytes(Map.of("summary", summary));
+        Request req = new Request.Builder()
+                .url(baseUrl + "/documents/" + id + "/summary")
+                .put(RequestBody.create(body, okhttp3.MediaType.parse("application/json")))
+                .build();
+        try (Response res = http.newCall(req).execute()) {
+            if (!res.isSuccessful()) throw new IllegalStateException("PUT summary " + res.code() + " " + res.message());
+        }
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class DocumentDto {
         public Integer id;

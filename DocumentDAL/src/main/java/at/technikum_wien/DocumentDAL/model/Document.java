@@ -47,6 +47,9 @@ public class Document {
     @Column(columnDefinition = "text")
     private String summary;
 
+    private LocalDateTime summaryGeneratedAt;
+    private String summaryStatus; // e.g. GENAI_DONE / GENAI_FAILED
+
     private LocalDateTime uploadDate;
 
     private String fileName;
