@@ -135,7 +135,12 @@ public class DocumentController {
                 .map(existing -> {
                     existing.setTitle(incoming.getTitle());
                     existing.setContent(incoming.getContent());
-                    existing.setSummary(incoming.getSummary());
+
+                    // Summary darf nicht überschrieben werden, wenn sie bereits durch GenAI gesetzt wurde
+                    if (!"GENAI_DONE".equals(existing.getSummaryStatus())) {
+                        existing.setSummary(incoming.getSummary());
+                    }
+
                     if (incoming.getUploadDate() != null) {
                         existing.setUploadDate(incoming.getUploadDate());
                     }
@@ -181,11 +186,13 @@ public class DocumentController {
     }
 
     @PutMapping("/{id}/summary")
-    public ResponseEntity<?> updateSummary(@PathVariable int id, @RequestBody Map<String,String> body) {
+    public ResponseEntity<?> updateSummary(@PathVariable int id, @RequestBody Map<String, String> body) {
         String summary = body.get("summary");
         try {
             Document updated = service.updateSummary(id, summary);
             return ResponseEntity.ok(updated);
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
         } catch (DocumentNotFoundException ex) {
             return ResponseEntity.notFound().build();
         } catch (Exception ex) {

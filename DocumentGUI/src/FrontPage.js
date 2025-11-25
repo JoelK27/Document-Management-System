@@ -186,7 +186,6 @@ async function uploadFile(file) {
     try {
         const meta = {
             title: file.name,
-            summary: `Uploaded on ${new Date().toLocaleDateString()}`,
         };
 
         const result = await uploadDocumentFile(file, meta);

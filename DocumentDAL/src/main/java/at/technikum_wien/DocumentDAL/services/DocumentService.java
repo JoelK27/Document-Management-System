@@ -19,6 +19,10 @@ import java.util.UUID;
 @Service
 public class DocumentService {
 
+    private static final String SUMMARY_STATUS_IN_PROGRESS = "IN_PROGRESS";
+    private static final String SUMMARY_STATUS_DONE = "GENAI_DONE";
+    private static final String SUMMARY_STATUS_FAILED = "GENAI_FAILED";
+
     private final DocumentRepository repo;
     private final OcrMessagePublisher publisher;
     private final MinioFileStorage storage;
@@ -121,10 +125,16 @@ public class DocumentService {
     }
 
     public Document updateSummary(int id, String summary) {
-        var doc = repo.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
+        Document doc = repo.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
+
+        // Wenn die Summary bereits gesetzt wurde, darf sie nicht mehr überschrieben werden
+        if (SUMMARY_STATUS_DONE.equals(doc.getSummaryStatus())) {
+            throw new IllegalStateException("Summary has already been set and cannot be modified.");
+        }
+
         doc.setSummary(summary);
         doc.setSummaryGeneratedAt(LocalDateTime.now());
-        doc.setSummaryStatus("GENAI_DONE");
+        doc.setSummaryStatus(SUMMARY_STATUS_DONE);
         return repo.save(doc);
     }
 }
