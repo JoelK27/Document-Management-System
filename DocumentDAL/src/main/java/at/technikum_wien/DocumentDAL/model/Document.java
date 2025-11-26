@@ -58,4 +58,7 @@ public class Document {
     private String storageBucket;
     private String storageKey;
     private String previewKey;
+
+    // Neuer Status: PENDING, COMPLETED, FAILED
+    private String ocrJobStatus;
 }

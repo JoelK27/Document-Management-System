@@ -39,6 +39,8 @@ public class DocumentService {
         if (doc.getUploadDate() == null) {
             doc.setUploadDate(LocalDateTime.now());
         }
+        doc.setOcrJobStatus("PENDING");
+        
         Document saved = repo.save(doc);
         publishUploaded(saved);
         return saved;
@@ -111,9 +113,14 @@ public class DocumentService {
     public Document partialUpdate(int id, Map<String, Object> updates) {
         Document doc = repo.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
 
+        if (updates.containsKey("title")) doc.setTitle((String) updates.get("title"));
+        if (updates.containsKey("summary")) doc.setSummary((String) updates.get("summary"));
+        
         if (updates.containsKey("content")) {
             doc.setContent((String) updates.get("content"));
+            doc.setOcrJobStatus("COMPLETED");
         }
+
         return repo.save(doc);
     }
 
