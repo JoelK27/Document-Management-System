@@ -6,9 +6,9 @@ services:
   database:
     image: postgres:15
     environment:
-      POSTGRES_DB: documentdb
-      POSTGRES_USER: docuser
-      POSTGRES_PASSWORD: docpass
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
@@ -29,8 +29,8 @@ services:
       - "9000:9000"   # S3 API
       - "9001:9001"   # MinIO Console
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - minio_data:/data
     networks:
@@ -63,18 +63,18 @@ services:
       - "8080:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/documentdb
-      SPRING_DATASOURCE_USERNAME: docuser
-      SPRING_DATASOURCE_PASSWORD: docpass
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
-      SPRING_RABBITMQ_USERNAME: guest
-      SPRING_RABBITMQ_PASSWORD: guest
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       DOC_EVENTS_EXCHANGE: documents.exchange
       DOC_EVENTS_QUEUE: documents.uploaded
       DOC_EVENTS_ROUTING_KEY: document.uploaded
       MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: documents
     depends_on:
       database:
@@ -99,14 +99,14 @@ services:
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
-      SPRING_RABBITMQ_USERNAME: guest
-      SPRING_RABBITMQ_PASSWORD: guest
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       DOC_EVENTS_EXCHANGE: documents.exchange
       DOC_EVENTS_QUEUE: documents.uploaded
       DOC_EVENTS_ROUTING_KEY: document.uploaded
       MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       SPRING_RABBITMQ_LISTENER_SIMPLE_MISSING_QUEUES_FATAL: "false"
     networks:
       - app-network
@@ -144,7 +144,7 @@ services:
     image: document-ms/genai-worker:local
     environment:
       GENAI_ENABLED: "true"
-      GOOGLE_API_KEY: "${GOOGLE_API_KEY:-}"
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY}" 
       GENAI_ENDPOINT: "${GENAI_ENDPOINT:-https://generativelanguage.googleapis.com}"
       GENAI_MODEL: "${GENAI_MODEL:-gemini-2.0-flash}"
       GENAI_TIMEOUT: "15000"
@@ -152,11 +152,11 @@ services:
       BACKEND_BASE_URL: "http://backend:8080/api"
       SPRING_RABBITMQ_HOST: "rabbitmq"
       SPRING_RABBITMQ_PORT: "5672"
-      SPRING_RABBITMQ_USERNAME: "guest"
-      SPRING_RABBITMQ_PASSWORD: "guest"
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       MINIO_ENDPOINT: "http://minio:9000"
-      MINIO_ACCESS_KEY: "minioadmin"
-      MINIO_SECRET_KEY: "minioadmin"
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
     depends_on:
       rabbitmq:
         condition: service_healthy
