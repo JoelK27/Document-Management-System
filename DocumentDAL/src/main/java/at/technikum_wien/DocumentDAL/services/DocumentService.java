@@ -1,5 +1,7 @@
 package at.technikum_wien.DocumentDAL.services;
 
+import at.technikum_wien.DocumentDAL.elasticsearch.DocumentIndex;
+import at.technikum_wien.DocumentDAL.elasticsearch.DocumentIndexRepository;
 import at.technikum_wien.DocumentDAL.exceptions.DocumentNotFoundException;
 import at.technikum_wien.DocumentDAL.exceptions.FileValidationException;
 import at.technikum_wien.DocumentDAL.messaging.OcrMessagePublisher;
@@ -7,11 +9,10 @@ import at.technikum_wien.DocumentDAL.messaging.events.DocumentUploadedEvent;
 import at.technikum_wien.DocumentDAL.model.Document;
 import at.technikum_wien.DocumentDAL.repo.DocumentRepository;
 import at.technikum_wien.DocumentDAL.storage.MinioFileStorage;
-import jakarta.validation.constraints.NotNull;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
@@ -28,6 +29,9 @@ public class DocumentService {
     private final MinioFileStorage storage;
     private final String documentBucket;
 
+    @Autowired(required = false)
+    private DocumentIndexRepository elasticRepo;
+
     public DocumentService(DocumentRepository repo, OcrMessagePublisher publisher, MinioFileStorage storage) {
         this.repo = repo;
         this.publisher = publisher;
@@ -42,6 +46,7 @@ public class DocumentService {
         doc.setOcrJobStatus("PENDING");
         
         Document saved = repo.save(doc);
+        indexToElastic(saved);
         publishUploaded(saved);
         return saved;
     }
@@ -63,6 +68,7 @@ public class DocumentService {
             doc.setStorageKey(key);
 
             Document saved = repo.save(doc);
+            indexToElastic(saved);
             publishUploaded(saved);
             return saved;
         } catch (Exception e) {
@@ -83,6 +89,7 @@ public class DocumentService {
             doc.setMimeType(file.getContentType());
             doc.setSize(file.getSize());
             Document saved = repo.save(doc);
+            indexToElastic(saved);
             publishUploaded(saved);
             return saved;
         } catch (Exception e) {
@@ -108,6 +115,10 @@ public class DocumentService {
             }
         } catch (Exception ignore) {}
         repo.deleteById(id);
+        // Auch aus Elasticsearch löschen
+        if (elasticRepo != null) {
+            elasticRepo.deleteById(id);
+        }
     }
 
     public Document partialUpdate(int id, Map<String, Object> updates) {
@@ -120,8 +131,10 @@ public class DocumentService {
             doc.setContent((String) updates.get("content"));
             doc.setOcrJobStatus("COMPLETED");
         }
-
-        return repo.save(doc);
+        Document saved = repo.save(doc);
+        // Elasticsearch-Index aktualisieren
+        indexToElastic(saved);
+        return saved;
     }
 
     private void publishUploaded(Document d) {
@@ -142,6 +155,21 @@ public class DocumentService {
         doc.setSummary(summary);
         doc.setSummaryGeneratedAt(LocalDateTime.now());
         doc.setSummaryStatus(SUMMARY_STATUS_DONE);
-        return repo.save(doc);
+        Document saved = repo.save(doc);
+        // Elasticsearch-Index aktualisieren
+        indexToElastic(saved);
+        return saved;
+    }
+
+    /** Hilfsmethode: Indexiert oder aktualisiert das Dokument in Elasticsearch */
+    private void indexToElastic(Document doc) {
+        if (elasticRepo != null && doc != null) {
+            DocumentIndex idx = new DocumentIndex();
+            idx.setId(doc.getId());
+            idx.setTitle(doc.getTitle());
+            idx.setContent(doc.getContent());
+            idx.setFileName(doc.getFileName());
+            elasticRepo.save(idx);
+        }
     }
 }

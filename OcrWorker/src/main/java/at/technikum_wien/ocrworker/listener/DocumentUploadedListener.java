@@ -11,6 +11,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import at.technikum_wien.ocrworker.elasticsearch.DocumentIndexRepository;
+import at.technikum_wien.ocrworker.elasticsearch.DocumentIndex;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Component
 public class DocumentUploadedListener {
@@ -21,6 +24,8 @@ public class DocumentUploadedListener {
     private final OcrService ocrService;
     private final BackendClient backend;
     private final RabbitTemplate rabbit;
+    @Autowired
+    private DocumentIndexRepository indexRepository;
 
     public DocumentUploadedListener(MinioClient minio, OcrService ocrService, BackendClient backend, RabbitTemplate rabbit) {
         this.minio = minio;
@@ -47,6 +52,9 @@ public class DocumentUploadedListener {
 
         String text = ocrService.extractPreferPdfTextThenOcr(fileBytes);
         log.info("OCR pipeline extracted {} chars for id={}", text.length(), evt.id());
+
+        DocumentIndex docIndex = new DocumentIndex(evt.id(), evt.title(), text, evt.fileName());
+        indexRepository.save(docIndex);
 
         backend.updateContent(evt.id(), text);
         // publish OCR completed event (include extracted text or truncated version)
