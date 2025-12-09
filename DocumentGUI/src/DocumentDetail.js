@@ -150,6 +150,28 @@ async function init() {
         els.date.textContent = formatDate(doc.uploadDate);
         els.summary.textContent = doc.summary || 'No summary available';
 
+        // Status
+        const statusEl = document.getElementById('document-status'); // ID muss im HTML existieren (siehe unten)
+        if (statusEl) {
+            const status = doc.ocrJobStatus || 'PENDING';
+            let icon = 'hourglass_empty';
+            let text = 'Processing';
+            let colorClass = 'text-yellow-600 dark:text-yellow-400';
+
+            if (status === 'COMPLETED') {
+                icon = 'check_circle';
+                text = 'Completed';
+                colorClass = 'text-green-600 dark:text-green-400';
+            } else if (status === 'FAILED') {
+                icon = 'error';
+                text = 'Failed';
+                colorClass = 'text-red-600 dark:text-red-400';
+            }
+
+            statusEl.className = `inline-flex items-center gap-1.5 font-medium ${colorClass}`;
+            statusEl.innerHTML = `<span class="material-symbols-outlined text-base">${icon}</span> ${text}`;
+        }
+
         // Preview laden
         await loadPreview(docId, doc);
         

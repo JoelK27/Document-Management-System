@@ -12,13 +12,20 @@ public class MinioFileStorage implements FileStorage {
 
     private final MinioClient client;
     private final String defaultBucket;
+    private final String previewBucket;
 
-    public MinioFileStorage(MinioClient client, @Value("${minio.bucket}") String defaultBucket) throws Exception {
+    public MinioFileStorage(MinioClient client, @Value("${minio.bucket}") String defaultBucket, @Value("${minio.preview-bucket}") String previewBucket) throws Exception {
         this.client = client;
         this.defaultBucket = defaultBucket;
-        boolean exists = client.bucketExists(BucketExistsArgs.builder().bucket(defaultBucket).build());
+        this.previewBucket = previewBucket;
+        ensureBucketExists(defaultBucket);
+        ensureBucketExists(previewBucket);
+    }
+
+    private void ensureBucketExists(String bucketName) throws Exception {
+        boolean exists = client.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
         if (!exists) {
-            client.makeBucket(MakeBucketArgs.builder().bucket(defaultBucket).build());
+            client.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
         }
     }
 
@@ -52,4 +59,5 @@ public class MinioFileStorage implements FileStorage {
     }
 
     public String getDefaultBucket() { return defaultBucket; }
+    public String getPreviewBucket() { return previewBucket; }
 }

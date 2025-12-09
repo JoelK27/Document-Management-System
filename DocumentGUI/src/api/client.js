@@ -68,7 +68,7 @@ export const uploadDocumentFile = async (file, meta = {}) => {
   const fd = new FormData();
   fd.append('file', file);
   if (meta.title) fd.append('title', meta.title);
-  if (meta.summary) fd.append('summary', meta.summary);
+  // if (meta.summary) fd.append('summary', meta.summary);
   if (meta.content) fd.append('content', meta.content);
 
   // Wichtig: KEIN Content-Type setzen -> Browser setzt Boundary

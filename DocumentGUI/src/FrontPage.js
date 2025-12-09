@@ -186,7 +186,6 @@ async function uploadFile(file) {
     try {
         const meta = {
             title: file.name,
-            summary: `Uploaded on ${new Date().toLocaleDateString()}`,
         };
 
         const result = await uploadDocumentFile(file, meta);
@@ -234,19 +233,32 @@ function displayDocuments(documents) {
 // Create a document element
 function createDocumentElement(doc) {
     const element = document.createElement('div');
-
-    // Gleiche Klassen wie in Test.html
     element.className = 'bg-background-light dark:bg-background-dark p-6 rounded-xl flex flex-col md:flex-row items-start gap-4 transition-shadow hover:shadow-lg border border-black/5 dark:border-white/5';
 
-    // Datum formatieren (wie gehabt)
     const uploadDate = doc.uploadDate
         ? doc.uploadDate.replace('T', ' ').replace(/\.\d+$/, '').replace('Z', '')
         : 'Unknown date';
 
-    // Status (optional später dynamisch)
-    const statusClass = 'bg-gray-500/10 text-gray-500 dark:bg-gray-400/20 dark:text-gray-400';
-    const statusDot = 'bg-gray-500';
-    const statusText = 'Not Started';
+    let statusClass, statusDot, statusText;
+    const status = doc.ocrJobStatus || 'PENDING'; // Fallback
+
+    switch (status) {
+        case 'COMPLETED':
+            statusClass = 'bg-green-500/10 text-green-500 dark:bg-green-400/20 dark:text-green-400';
+            statusDot = 'bg-green-500';
+            statusText = 'Finished';
+            break;
+        case 'FAILED':
+            statusClass = 'bg-red-500/10 text-red-500 dark:bg-red-400/20 dark:text-red-400';
+            statusDot = 'bg-red-500';
+            statusText = 'Failed';
+            break;
+        default: // PENDING or IN_PROGRESS
+            statusClass = 'bg-yellow-500/10 text-yellow-500 dark:bg-yellow-400/20 dark:text-yellow-400';
+            statusDot = 'bg-yellow-500';
+            statusText = 'Processing';
+            break;
+    }
 
     element.innerHTML = `
         <div class="flex-1">

@@ -2,6 +2,7 @@ package at.technikum_wien.ocrworker.listener;
 
 import at.technikum_wien.ocrworker.client.BackendClient;
 import at.technikum_wien.ocrworker.model.DocumentUploadedEvent;
+import at.technikum_wien.ocrworker.model.DocumentOcrCompletedEvent;
 import at.technikum_wien.ocrworker.service.OcrService;
 import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
@@ -9,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 @Component
 public class DocumentUploadedListener {
@@ -18,11 +20,13 @@ public class DocumentUploadedListener {
     private final MinioClient minio;
     private final OcrService ocrService;
     private final BackendClient backend;
+    private final RabbitTemplate rabbit;
 
-    public DocumentUploadedListener(MinioClient minio, OcrService ocrService, BackendClient backend) {
+    public DocumentUploadedListener(MinioClient minio, OcrService ocrService, BackendClient backend, RabbitTemplate rabbit) {
         this.minio = minio;
         this.ocrService = ocrService;
         this.backend = backend;
+        this.rabbit = rabbit;
     }
 
     @RabbitListener(queues = "${DOC_EVENTS_QUEUE:documents.uploaded}")
@@ -45,6 +49,10 @@ public class DocumentUploadedListener {
         log.info("OCR pipeline extracted {} chars for id={}", text.length(), evt.id());
 
         backend.updateContent(evt.id(), text);
+        // publish OCR completed event (include extracted text or truncated version)
+        var completed = new DocumentOcrCompletedEvent(evt.id(), evt.storageBucket(), evt.storageKey(), text);
+        // send to queue documents.ocr.completed
+        rabbit.convertAndSend("documents.ocr.completed", completed);
         log.info("Content updated in backend for id={}", evt.id());
     }
 }

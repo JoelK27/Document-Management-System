@@ -1,5 +1,6 @@
 package at.technikum_wien.DocumentDAL.controller;
 
+import at.technikum_wien.DocumentDAL.exceptions.DocumentNotFoundException;
 import at.technikum_wien.DocumentDAL.model.Document;
 import at.technikum_wien.DocumentDAL.repo.DocumentRepository;
 import at.technikum_wien.DocumentDAL.services.DocumentService;
@@ -9,10 +10,8 @@ import at.technikum_wien.DocumentDAL.validation.MaxFileSize;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.CacheControl;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,6 +19,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/documents")
@@ -28,13 +28,14 @@ public class DocumentController {
 
     private final DocumentRepository repo;
     private final DocumentService service;
-    private final PdfPreviewService pdfPreviewService = new PdfPreviewService();
+    private final PdfPreviewService pdfPreviewService;
     private static final Logger log = LoggerFactory.getLogger(DocumentController.class);
     private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
 
-    public DocumentController(DocumentRepository repo, DocumentService service) {
+    public DocumentController(DocumentRepository repo, DocumentService documentService,  PdfPreviewService pdfPreviewService) {
         this.repo = repo;
-        this.service = service;
+        this.service = documentService;
+        this.pdfPreviewService = pdfPreviewService;
     }
 
     // JSON-Metadaten speichern (ohne Datei)
@@ -107,6 +108,12 @@ public class DocumentController {
         return ResponseEntity.ok(results);
     }
 
+    @PatchMapping("/{id}")
+    public ResponseEntity<Document> partialUpdate(@PathVariable Integer id, @RequestBody Map<String, Object> updates) {
+        Document updatedDoc = service.partialUpdate(id, updates);
+        return ResponseEntity.ok(updatedDoc);
+    }
+
     // GET /api/documents/
     @GetMapping
     public ResponseEntity<List<Document>> getAll() {
@@ -128,7 +135,12 @@ public class DocumentController {
                 .map(existing -> {
                     existing.setTitle(incoming.getTitle());
                     existing.setContent(incoming.getContent());
-                    existing.setSummary(incoming.getSummary());
+
+                    // Summary darf nicht überschrieben werden, wenn sie bereits durch GenAI gesetzt wurde
+                    if (!"GENAI_DONE".equals(existing.getSummaryStatus())) {
+                        existing.setSummary(incoming.getSummary());
+                    }
+
                     if (incoming.getUploadDate() != null) {
                         existing.setUploadDate(incoming.getUploadDate());
                     }
@@ -157,7 +169,7 @@ public class DocumentController {
             }
             try {
                 byte[] src = service.getFileBytes(id);
-                byte[] png = pdfPreviewService.renderFirstPageAsPng(src);
+                byte[] png = pdfPreviewService.getPreview(doc, src);
                 return ResponseEntity.ok()
                         .cacheControl(CacheControl.noStore())
                         .contentType(MediaType.IMAGE_PNG)
@@ -171,5 +183,20 @@ public class DocumentController {
                 return ResponseEntity.internalServerError().body(null);
             }
         }).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}/summary")
+    public ResponseEntity<?> updateSummary(@PathVariable int id, @RequestBody Map<String, String> body) {
+        String summary = body.get("summary");
+        try {
+            Document updated = service.updateSummary(id, summary);
+            return ResponseEntity.ok(updated);
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+        } catch (DocumentNotFoundException ex) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", ex.getMessage()));
+        }
     }
 }

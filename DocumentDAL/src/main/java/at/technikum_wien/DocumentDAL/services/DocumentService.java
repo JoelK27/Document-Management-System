@@ -13,27 +13,34 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
 public class DocumentService {
 
+    private static final String SUMMARY_STATUS_IN_PROGRESS = "IN_PROGRESS";
+    private static final String SUMMARY_STATUS_DONE = "GENAI_DONE";
+    private static final String SUMMARY_STATUS_FAILED = "GENAI_FAILED";
+
     private final DocumentRepository repo;
     private final OcrMessagePublisher publisher;
     private final MinioFileStorage storage;
-    private final String bucket;
+    private final String documentBucket;
 
     public DocumentService(DocumentRepository repo, OcrMessagePublisher publisher, MinioFileStorage storage) {
         this.repo = repo;
         this.publisher = publisher;
         this.storage = storage;
-        this.bucket = storage.getDefaultBucket();
+        this.documentBucket = storage.getDefaultBucket();
     }
 
     public Document createDocument(Document doc) {
         if (doc.getUploadDate() == null) {
             doc.setUploadDate(LocalDateTime.now());
         }
+        doc.setOcrJobStatus("PENDING");
+        
         Document saved = repo.save(doc);
         publishUploaded(saved);
         return saved;
@@ -51,8 +58,8 @@ public class DocumentService {
             doc.setSize(file.getSize());
 
             String key = UUID.randomUUID() + "-" + (file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload");
-            storage.put(bucket, key, file.getBytes(), file.getContentType());
-            doc.setStorageBucket(bucket);
+            storage.put(documentBucket, key, file.getBytes(), file.getContentType());
+            doc.setStorageBucket(documentBucket);
             doc.setStorageKey(key);
 
             Document saved = repo.save(doc);
@@ -69,7 +76,7 @@ public class DocumentService {
         try {
             if (doc.getStorageKey() == null) {
                 doc.setStorageKey(UUID.randomUUID() + "-" + (file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload"));
-                doc.setStorageBucket(bucket);
+                doc.setStorageBucket(documentBucket);
             }
             storage.put(doc.getStorageBucket(), doc.getStorageKey(), file.getBytes(), file.getContentType());
             doc.setFileName(file.getOriginalFilename());
@@ -103,10 +110,38 @@ public class DocumentService {
         repo.deleteById(id);
     }
 
+    public Document partialUpdate(int id, Map<String, Object> updates) {
+        Document doc = repo.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
+
+        if (updates.containsKey("title")) doc.setTitle((String) updates.get("title"));
+        if (updates.containsKey("summary")) doc.setSummary((String) updates.get("summary"));
+        
+        if (updates.containsKey("content")) {
+            doc.setContent((String) updates.get("content"));
+            doc.setOcrJobStatus("COMPLETED");
+        }
+
+        return repo.save(doc);
+    }
+
     private void publishUploaded(Document d) {
         publisher.publish(new DocumentUploadedEvent(
                 d.getId(), d.getTitle(), d.getFileName(), d.getMimeType(), d.getSize(), d.getUploadDate(),
                 d.getStorageBucket(), d.getStorageKey()
         ));
+    }
+
+    public Document updateSummary(int id, String summary) {
+        Document doc = repo.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
+
+        // Wenn die Summary bereits gesetzt wurde, darf sie nicht mehr überschrieben werden
+        if (SUMMARY_STATUS_DONE.equals(doc.getSummaryStatus())) {
+            throw new IllegalStateException("Summary has already been set and cannot be modified.");
+        }
+
+        doc.setSummary(summary);
+        doc.setSummaryGeneratedAt(LocalDateTime.now());
+        doc.setSummaryStatus(SUMMARY_STATUS_DONE);
+        return repo.save(doc);
     }
 }
