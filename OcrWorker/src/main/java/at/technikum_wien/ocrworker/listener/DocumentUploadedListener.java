@@ -53,10 +53,14 @@ public class DocumentUploadedListener {
         String text = ocrService.extractPreferPdfTextThenOcr(fileBytes);
         log.info("OCR pipeline extracted {} chars for id={}", text.length(), evt.id());
 
-        DocumentIndex docIndex = new DocumentIndex(evt.id(), evt.title(), text, evt.fileName());
-        indexRepository.save(docIndex);
-
         backend.updateContent(evt.id(), text);
+
+        // Hole das vollständige Dokument aus dem Backend
+        var fullDoc = backend.getDocument(evt.id());
+
+        // Indexiere alle Felder in Elasticsearch
+        indexRepository.save(new DocumentIndex(fullDoc));
+
         // publish OCR completed event (include extracted text or truncated version)
         var completed = new DocumentOcrCompletedEvent(evt.id(), evt.storageBucket(), evt.storageKey(), text);
         // send to queue documents.ocr.completed

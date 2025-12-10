@@ -46,7 +46,7 @@ class DocumentTest {
     @Test
     void defaultConstructor_ShouldCreateEmptyDocument() {
         assertNotNull(document);
-        assertEquals(0, document.getId());
+        assertEquals(null, document.getId());
         assertNull(document.getTitle());
         assertNull(document.getContent());
         assertNull(document.getSummary());

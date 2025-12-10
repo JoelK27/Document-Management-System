@@ -168,7 +168,13 @@ public class DocumentService {
             idx.setId(doc.getId());
             idx.setTitle(doc.getTitle());
             idx.setContent(doc.getContent());
+            idx.setSummary(doc.getSummary());
+            idx.setSummaryStatus(doc.getSummaryStatus());
+            idx.setSummaryGeneratedAt(doc.getSummaryGeneratedAt() != null ? doc.getSummaryGeneratedAt().toString() : null);
+            idx.setUploadDate(doc.getUploadDate() != null ? doc.getUploadDate().toString() : null);
             idx.setFileName(doc.getFileName());
+            idx.setMimeType(doc.getMimeType());
+            idx.setSize(doc.getSize());
             elasticRepo.save(idx);
         }
     }
