@@ -175,6 +175,8 @@ public class DocumentService {
             idx.setFileName(doc.getFileName());
             idx.setMimeType(doc.getMimeType());
             idx.setSize(doc.getSize());
+            idx.setOcrJobStatus(doc.getOcrJobStatus());
+            
             elasticRepo.save(idx);
         }
     }

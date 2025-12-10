@@ -119,7 +119,9 @@ class DocumentIndexRepositoryTest {
         doc2.setTitle("Java Basics");
         repo.save(doc2);
 
-        List<DocumentIndex> results = repo.findByTitleContainingIgnoreCaseOrContentContainingIgnoreCase("spring", "spring-boot");
+        // FIX: Neue Methode aufrufen
+        List<DocumentIndex> results = repo.search("Spring Boot");
+        
         assertThat(results).extracting(DocumentIndex::getId).contains(10);
         assertThat(results).extracting(DocumentIndex::getId).doesNotContain(11);
     }

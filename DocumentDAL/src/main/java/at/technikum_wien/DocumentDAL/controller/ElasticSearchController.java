@@ -18,6 +18,6 @@ public class ElasticSearchController {
 
     @GetMapping("/search")
     public List<DocumentIndex> search(@RequestParam String q) {
-        return repo.findByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(q, q);
+        return repo.search(q);
     }
 }

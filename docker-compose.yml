@@ -59,16 +59,18 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
     environment:
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
     ports:
       - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
     networks:
       - app-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"'"]
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health | grep -E '\"status\":\"(green|yellow)\"'"]
       interval: 5s
       timeout: 5s
       retries: 60
@@ -145,7 +147,7 @@ services:
       GENAI_ENABLED: "true"
       GOOGLE_API_KEY: "${GOOGLE_API_KEY}"
       GENAI_ENDPOINT: "${GENAI_ENDPOINT:-https://generativelanguage.googleapis.com}"
-      GENAI_MODEL: "${GENAI_MODEL:-gemini-2.0-flash}"
+      GENAI_MODEL: "${GENAI_MODEL:-gemini-2.5-flash}"
       GENAI_TIMEOUT: "15000"
       GENAI_MAX_RETRIES: "3"
       BACKEND_BASE_URL: "http://backend:8080/api"
@@ -196,6 +198,7 @@ volumes:
   db_data:
   pgadmin_data:
   minio_data:
+  es_data:
 
 networks:
   app-network:

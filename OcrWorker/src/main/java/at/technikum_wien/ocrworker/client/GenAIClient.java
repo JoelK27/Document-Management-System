@@ -28,7 +28,7 @@ public class GenAIClient {
     public GenAIClient(
             @Value("${GOOGLE_API_KEY:}") String apiKey,
             @Value("${GENAI_ENDPOINT:https://generativelanguage.googleapis.com}") String baseEndpoint,
-            @Value("${GENAI_MODEL:gemini-2.0-flash}") String model,
+            @Value("${GENAI_MODEL:gemini-2.5-flash}") String model,
             @Value("${GENAI_MAX_RETRIES:3}") int maxRetries,
             @Value("${GENAI_TIMEOUT:15000}") long timeoutMillis
     ) {
