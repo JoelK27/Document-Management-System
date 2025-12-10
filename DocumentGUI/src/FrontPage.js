@@ -3,7 +3,7 @@ import {
     getAllDocuments,
     getDocumentFileUrl,
     deleteDocument,
-    searchDocuments
+    searchDocumentsElastic
 } from './api/client.js';
 
 // DOM elements
@@ -89,7 +89,7 @@ function initSearch() {
 
             try {
                 const documents = query
-                    ? await searchDocuments(query)
+                    ? await searchDocumentsElastic(query)
                     : await getAllDocuments();
 
                 displayDocuments(documents);
