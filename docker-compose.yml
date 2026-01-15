@@ -194,6 +194,26 @@ services:
       - app-network
     restart: unless-stopped
 
+  access-log-importer:
+    build: ./AccessLog
+    ports:
+      - "8082:8080"
+    environment:
+      # Nutze Variablen aus .env oder Hardcoded wie in database service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      # Mapping der lokalen Ordner in den Container
+      - ./access_logs_input:/data/input
+      - ./access_logs_archive:/data/archive
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
 volumes:
   db_data:
   pgadmin_data:

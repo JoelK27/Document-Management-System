@@ -25,6 +25,7 @@
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="AccessLog" options="-parameters" />
       <module name="DocumentDAL" options="-parameters" />
       <module name="GenAIWorker" options="-parameters" />
       <module name="OcrWorker" options="-parameters" />
