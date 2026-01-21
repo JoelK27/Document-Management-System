@@ -13,7 +13,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataElasticsearchTest
-@Disabled("Deaktiviert für CI-Pipeline, da kein live Elasticsearch verfügbar ist.") // HINZUFÜGEN
+@Disabled("Deaktiviert für CI-Pipeline, da kein live Elasticsearch verfügbar ist.")
 class DocumentIndexRepositoryTest {
 
     @Autowired

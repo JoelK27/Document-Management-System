@@ -32,7 +32,7 @@ public class LogImporterService {
     @Value("${import.file.pattern:*.xml}")
     private String filePattern;
 
-    // Läuft z.B. täglich um 01:00 Uhr
+    // Läuft täglich um 01:00 Uhr
     @Scheduled(cron = "${import.schedule.cron:0 0 1 * * *}")
     public void importAccessLogs() {
         log.info("Starting batch import from {}", inputFolder);
