@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import at.technikum_wien.ocrworker.elasticsearch.DocumentIndexRepository;
 import at.technikum_wien.ocrworker.elasticsearch.DocumentIndex;
-import org.springframework.beans.factory.annotation.Autowired;
 
 @Component
 public class DocumentUploadedListener {
@@ -24,14 +23,14 @@ public class DocumentUploadedListener {
     private final OcrService ocrService;
     private final BackendClient backend;
     private final RabbitTemplate rabbit;
-    @Autowired
-    private DocumentIndexRepository indexRepository;
+    private final DocumentIndexRepository indexRepository;
 
-    public DocumentUploadedListener(MinioClient minio, OcrService ocrService, BackendClient backend, RabbitTemplate rabbit) {
+    public DocumentUploadedListener(MinioClient minio, OcrService ocrService, BackendClient backend, RabbitTemplate rabbit, DocumentIndexRepository indexRepository) {
         this.minio = minio;
         this.ocrService = ocrService;
         this.backend = backend;
         this.rabbit = rabbit;
+        this.indexRepository = indexRepository;
     }
 
     @RabbitListener(queues = "${DOC_EVENTS_QUEUE:documents.uploaded}")
