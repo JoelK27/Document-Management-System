@@ -17,7 +17,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
-@ActiveProfiles("docker-test")
+@ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional
 class DocumentRepositoryTest {
@@ -112,7 +112,7 @@ class DocumentRepositoryTest {
 
     @Test
     void searchWithoutFileData_WithContentMatch_ShouldReturnMatchingDocuments() {
-        List<Document> results = documentRepository.searchWithoutFileData("development");
+        List<Document> results = documentRepository.searchWithoutFileData("comprehensive");
 
         assertEquals(1, results.size());
         assertEquals("Spring Boot Guide", results.get(0).getTitle());

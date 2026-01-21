@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import at.technikum_wien.ocrworker.elasticsearch.DocumentIndexRepository;
+import at.technikum_wien.ocrworker.elasticsearch.DocumentIndex;
 
 @Component
 public class DocumentUploadedListener {
@@ -21,12 +23,14 @@ public class DocumentUploadedListener {
     private final OcrService ocrService;
     private final BackendClient backend;
     private final RabbitTemplate rabbit;
+    private final DocumentIndexRepository indexRepository;
 
-    public DocumentUploadedListener(MinioClient minio, OcrService ocrService, BackendClient backend, RabbitTemplate rabbit) {
+    public DocumentUploadedListener(MinioClient minio, OcrService ocrService, BackendClient backend, RabbitTemplate rabbit, DocumentIndexRepository indexRepository) {
         this.minio = minio;
         this.ocrService = ocrService;
         this.backend = backend;
         this.rabbit = rabbit;
+        this.indexRepository = indexRepository;
     }
 
     @RabbitListener(queues = "${DOC_EVENTS_QUEUE:documents.uploaded}")
@@ -49,6 +53,13 @@ public class DocumentUploadedListener {
         log.info("OCR pipeline extracted {} chars for id={}", text.length(), evt.id());
 
         backend.updateContent(evt.id(), text);
+
+        // Hole das vollständige Dokument aus dem Backend
+        var fullDoc = backend.getDocument(evt.id());
+
+        // Indexiere alle Felder in Elasticsearch
+        indexRepository.save(new DocumentIndex(fullDoc));
+
         // publish OCR completed event (include extracted text or truncated version)
         var completed = new DocumentOcrCompletedEvent(evt.id(), evt.storageBucket(), evt.storageKey(), text);
         // send to queue documents.ocr.completed

@@ -17,7 +17,7 @@ services:
       - app-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U docuser -d documentdb || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -26,8 +26,8 @@ services:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     ports:
-      - "9000:9000"   # S3 API
-      - "9001:9001"   # MinIO Console
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
@@ -36,7 +36,6 @@ services:
     networks:
       - app-network
     restart: unless-stopped
-    # Healthcheck optional (curl muss im Image vorhanden sein)
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
       interval: 5s
@@ -55,14 +54,33 @@ services:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 30
+      retries: 60
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    environment:
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health | grep -E '\"status\":\"(green|yellow)\"'"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
 
   backend:
     build: ./DocumentDAL
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/documentdb
+      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_RABBITMQ_HOST: rabbitmq
@@ -76,26 +94,28 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: documents
+      MINIO_PREVIEW_BUCKET: previews
+      ELASTICSEARCH_URI: http://elasticsearch:9200
     depends_on:
       database:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
       minio:
-        condition: service_started
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     networks:
       - app-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   worker:
     build: ./OcrWorker
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      minio:
-        condition: service_started
-      backend:
-        condition: service_started
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
@@ -108,6 +128,44 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       SPRING_RABBITMQ_LISTENER_SIMPLE_MISSING_QUEUES_FATAL: "false"
+      ELASTICSEARCH_URI: http://elasticsearch:9200
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  genai-worker:
+    build: ./OcrWorker
+    image: document-ms/genai-worker:local
+    environment:
+      GENAI_ENABLED: "true"
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY}"
+      GENAI_ENDPOINT: "${GENAI_ENDPOINT:-https://generativelanguage.googleapis.com}"
+      GENAI_MODEL: "${GENAI_MODEL:-gemini-2.5-flash}"
+      GENAI_TIMEOUT: "15000"
+      GENAI_MAX_RETRIES: "3"
+      BACKEND_BASE_URL: "http://backend:8080/api"
+      SPRING_RABBITMQ_HOST: "rabbitmq"
+      SPRING_RABBITMQ_PORT: "5672"
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      MINIO_ENDPOINT: "http://minio:9000"
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      ELASTICSEARCH_URI: http://elasticsearch:9200
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     networks:
       - app-network
     restart: unless-stopped
@@ -116,9 +174,6 @@ services:
     build: ./DocumentGUI
     ports:
       - "80:80"
-    depends_on:
-      backend:
-        condition: service_started
     networks:
       - app-network
     restart: unless-stopped
@@ -139,38 +194,31 @@ services:
       - app-network
     restart: unless-stopped
 
-  genai-worker:
-    build: ./OcrWorker
-    image: document-ms/genai-worker:local
+  access-log-importer:
+    build: ./AccessLog
+    ports:
+      - "8082:8080"
     environment:
-      GENAI_ENABLED: "true"
-      GOOGLE_API_KEY: "${GOOGLE_API_KEY}" 
-      GENAI_ENDPOINT: "${GENAI_ENDPOINT:-https://generativelanguage.googleapis.com}"
-      GENAI_MODEL: "${GENAI_MODEL:-gemini-2.0-flash}"
-      GENAI_TIMEOUT: "15000"
-      GENAI_MAX_RETRIES: "3"
-      BACKEND_BASE_URL: "http://backend:8080/api"
-      SPRING_RABBITMQ_HOST: "rabbitmq"
-      SPRING_RABBITMQ_PORT: "5672"
-      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
-      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
-      MINIO_ENDPOINT: "http://minio:9000"
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      # Nutze Variablen aus .env oder Hardcoded wie in database service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      # Mapping der lokalen Ordner in den Container
+      - ./access_logs_input:/data/input
+      - ./access_logs_archive:/data/archive
     depends_on:
-      rabbitmq:
+      database:
         condition: service_healthy
-      backend:
-        condition: service_started
-      minio:
-        condition: service_started
     networks:
       - app-network
+    restart: unless-stopped
 
 volumes:
   db_data:
   pgadmin_data:
   minio_data:
+  es_data:
 
 networks:
   app-network:

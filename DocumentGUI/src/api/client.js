@@ -43,7 +43,7 @@ export const getAllDocuments = async () => {
   return data; // Array<DocumentDto>
 };
 
-export const listDocuments = () => searchDocuments('');
+export const listDocuments = () => searchDocumentsElastic('');
 
 /** Create (JSON) */
 export const createDocument = async (documentData /** @type {DocumentDto} */) => {
@@ -100,4 +100,9 @@ export const getDocumentFileUrl = async (documentId) => {
 export const getDocumentPreviewBlob = async (documentId) => {
   const res = await api.get(`/documents/${documentId}/preview`, { responseType: 'blob' });
   return res.data;
+};
+
+export const searchDocumentsElastic = async (q) => {
+  const { data } = await api.get(`/elastic/search?q=${encodeURIComponent(q)}`);
+  return data;
 };

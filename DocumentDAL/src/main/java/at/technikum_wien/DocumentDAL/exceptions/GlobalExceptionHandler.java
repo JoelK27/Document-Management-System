@@ -10,6 +10,9 @@ import org.springframework.http.HttpStatusCode;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.context.MessageSourceResolvable;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -62,6 +65,25 @@ public class GlobalExceptionHandler {
         log.error("Unhandled exception: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(body("Internal error", HttpStatus.INTERNAL_SERVER_ERROR));
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<Object> handleMethodValidationException(HandlerMethodValidationException ex) {
+        String errorMessage = ex.getAllValidationResults().stream()
+                .map(parameterResult -> {
+                    String paramName = parameterResult.getMethodParameter().getParameterName();
+                    String message = parameterResult.getResolvableErrors().stream()
+                            .map(MessageSourceResolvable::getDefaultMessage)
+                            .collect(Collectors.joining(", "));
+                    return paramName + ": " + message;
+                })
+                .collect(Collectors.joining("; "));
+
+        return ResponseEntity.badRequest().body(java.util.Map.of(
+                "status", 400,
+                "error", "Validation Error",
+                "message", errorMessage
+        ));
     }
 
     private boolean isClientAbort(Throwable ex) {

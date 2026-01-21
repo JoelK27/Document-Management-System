@@ -1,0 +1,5 @@
+<accessLogs date="2026-01-15">
+    <!-- IDs müssen existierenden Dokument-IDs entsprechen -->
+    <entry documentId="1" count="50" />
+    <entry documentId="2" count="120" />
+</accessLogs>

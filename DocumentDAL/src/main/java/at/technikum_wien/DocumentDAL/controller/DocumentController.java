@@ -1,5 +1,7 @@
 package at.technikum_wien.DocumentDAL.controller;
 
+import at.technikum_wien.DocumentDAL.elasticsearch.DocumentIndex;
+import at.technikum_wien.DocumentDAL.elasticsearch.DocumentIndexRepository;
 import at.technikum_wien.DocumentDAL.exceptions.DocumentNotFoundException;
 import at.technikum_wien.DocumentDAL.model.Document;
 import at.technikum_wien.DocumentDAL.repo.DocumentRepository;
@@ -27,13 +29,15 @@ import java.util.Map;
 public class DocumentController {
 
     private final DocumentRepository repo;
+    private final DocumentIndexRepository indexRepo;
     private final DocumentService service;
     private final PdfPreviewService pdfPreviewService;
     private static final Logger log = LoggerFactory.getLogger(DocumentController.class);
     private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
 
-    public DocumentController(DocumentRepository repo, DocumentService documentService,  PdfPreviewService pdfPreviewService) {
+    public DocumentController(DocumentRepository repo, DocumentIndexRepository indexRepo, DocumentService documentService, PdfPreviewService pdfPreviewService) {
         this.repo = repo;
+        this.indexRepo = indexRepo;
         this.service = documentService;
         this.pdfPreviewService = pdfPreviewService;
     }
@@ -99,13 +103,15 @@ public class DocumentController {
 
     // Suche (q optional)
     @GetMapping("/search")
-    public ResponseEntity<List<Document>> search(@RequestParam(value = "q", required = false, defaultValue = "") String q) {
+    public List<DocumentIndex> search(@RequestParam(required = false) String q) {
         if (q == null || q.isBlank()) {
-            // Falls findAllWithoutFileData existiert, weiterverwenden; bei MinIO gibt es kein fileData mehr.
-            return ResponseEntity.ok(repo.findAllWithoutFileData());
+            java.util.List<DocumentIndex> all = new java.util.ArrayList<>();
+            indexRepo.findAll().forEach(all::add);
+            return all;
         }
-        List<Document> results = repo.searchWithoutFileData(q);
-        return ResponseEntity.ok(results);
+        
+        // FIX: Aufruf der neuen, kürzeren Methode
+        return indexRepo.search(q);
     }
 
     @PatchMapping("/{id}")

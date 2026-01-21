@@ -18,14 +18,18 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="OcrWorker" />
+        <module name="AccessLog" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="AccessLog.main" target="17" />
+      <module name="AccessLog.test" target="17" />
       <module name="GenAIWorker" target="21" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="AccessLog" options="-parameters" />
       <module name="DocumentDAL" options="-parameters" />
       <module name="GenAIWorker" options="-parameters" />
       <module name="OcrWorker" options="-parameters" />

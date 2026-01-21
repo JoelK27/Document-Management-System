@@ -2,6 +2,8 @@ package at.technikum_wien.ocrworker.client;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Getter;
+import lombok.Setter;
 import okhttp3.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -70,12 +72,15 @@ public class BackendClient {
         public String title;
         public String content;
         public String summary;
+        public String summaryStatus;
+        public String summaryGeneratedAt;
         public String uploadDate;
         public String fileName;
         public String mimeType;
         public Long size;
         public String storageBucket;
         public String storageKey;
-        // kein Spring-DTO nötig für previewKey
+        public String previewKey;
+        public String ocrJobStatus;
     }
 }
